@@ -1,0 +1,11 @@
+.Information {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6em;
+}
+
+@media (max-width: 900px) {
+  .Information {
+    flex-direction: column;
+  }
+}

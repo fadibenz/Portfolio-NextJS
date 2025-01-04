@@ -1,0 +1,114 @@
+.imageContainer {
+    width: 260px;
+  height: 207px;
+}
+.Add_info {
+  width: 25%;
+  padding: 1em;
+}
+
+.Education {
+  margin-bottom: 2em;
+  border-bottom: 2px solid black;
+  padding-bottom: 2em;
+}
+
+.Education__title {
+  font-family: "ITC cushing std";
+  margin-bottom: 0.8em;
+  font-size: var(--ff-100);
+  font-style: italic;
+  position: relative;
+}
+
+.Education p {
+  max-width: 90%;
+}
+
+.subtitle {
+  margin-bottom: 0.6em;
+  position: relative;
+  cursor: pointer;
+  width: fit-content;
+  font-size: var(--ff-200);
+}
+
+.Light {
+  display: block;
+  margin-top: 0.6em;
+  font-size: 0.9rem;
+  color: var(--clr-primary-3);
+}
+
+@media (max-width: 900px){
+  .Add_info {
+    width: 100%;
+    order: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 2em;
+  }
+
+    .Education {
+    display: flex;
+    gap: 3em;
+    border-bottom: none;
+    margin-bottom: 0.1em;
+    margin-top: 2em;
+  }
+  .Education p {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 700px) {
+  .Education {
+    flex-direction: column;
+    align-items: center;
+    margin-top: 0.4em;
+    gap: 1em;
+  }
+  .imageContainer{
+    margin-bottom: 0;
+  }
+  .Education div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+}
+
+
+
+.Know_me_more {
+  color: white;
+}
+
+.Know_me_more__info {
+  width: 90%;
+  text-align: center;
+  padding: 1em 0.5em;
+  background-color: var(--clr-primary-2);
+}
+
+.Know_me_more__info h2 {
+  text-align: center;
+}
+
+.Know_me_more__info p {
+  width: 80%;
+  margin: auto;
+}
+.Dash {
+  display: block;
+  border: dashed var(--clr-primary-3) 1px;
+  margin: auto;
+  margin-block: 0.5em;
+  width: 80%;
+}
+
+.Know_me_more__info p {
+  margin-top: 0.5em;
+}

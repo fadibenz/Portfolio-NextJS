@@ -1,0 +1,80 @@
+.About_me {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 45%;
+  padding: 1em;
+}
+
+.About_me h2 {
+  margin-bottom: 1em;
+  font-family: "ITC cushing std";
+  font-style: italic;
+  font-size: var(--ff-100);
+  position: relative;
+  width: max-content;
+  display: flex;
+  margin-inline: auto;
+}
+
+.About_me h3 {
+  font-size: var(--ff-400);
+  text-align: center;
+  margin-block: 0.125em;
+}
+
+.quote {
+  display: block;
+  text-align: center;
+  color: var(--clr-primary-3);
+  margin-block: 1em;
+  max-width: 470px;
+}
+
+.About_me .Dash {
+  margin-bottom: 0.5em;
+}
+
+.firstLetter {
+  font-size: 2rem;
+  font-family: "ITC cushing std";
+}
+
+.About_me img {
+  width: 466px;
+  height: 287px;
+}
+
+.DO-ME {
+  color: #dd3418;
+}
+
+
+.spacer {
+  display: block;
+  margin-bottom: 0.3em;
+}
+
+.content img {
+  float: left;
+  width: 230px;
+  margin-right: 1em;
+  height: 250px;
+  margin-bottom: 0;
+  margin-top: 0.9em;
+}
+
+@media (max-width: 500px) {
+  .content img {
+    float: none;
+    width: 100%;
+    margin: 1em 0 1em 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .About_me {
+    width: 100%;
+    order: 1;
+  }
+}

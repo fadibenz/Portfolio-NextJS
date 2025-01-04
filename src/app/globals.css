@@ -1,21 +1,306 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
+/* General styles */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* primary color */
+  --clr-primary-1: #f5f5f5;
+  /* Other shades of primary color */
+  --clr-primary-2: #424242;
+  --clr-primary-3: #838383;
+  /* secondary color */
+  --clr-secondary-1: #da0000;
+  --clr-secondary-2: #ffd900;
+  /* bluish color */
+  --clr-blue-1: hsl(220, 13%, 13%);
+  --clr-blue-2: hsl(219, 9%, 45%);
+  --clr-blue-3: hsl(220, 14%, 75%);
+  --clr-blue-4: hsl(240, 60%, 98%);
+  /* general */
+  --radius: 0.5rem;
+  --transition: all 0.2s linear;
+  --transition-2: all 0.1s linear;
+  --spacing: 0.1rem;
+  /* Fonts */
+  --ff-700: 5rem;
+  --ff-600: 4rem;
+  --ff-500: 2.75rem;
+  --ff-400: 2.5rem;
+  --ff-300: 1.875rem;
+  --ff-200: 1.625rem;
+  --ff-100: 1.25rem;
+}
+*,
+::before,
+::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  font-size: 16px;
+}
+
+ul {
+  list-style-type: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  text-decoration: none;
+  cursor: pointer;
+}
+a:visited,
+a:any-link {
+  color: inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+p {
+  margin: 0;
+}
+
+p {
+  line-height: 1.6;
+  font-size: 1.2rem;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  text-rendering: optimizeSpeed;
+  line-height: 1.25;
+}
+
+img,
+picture {
+  max-width: 100%;
+  display: block;
+  margin-bottom: 2em;
+  border-radius: 0.6rem;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "ITC cushing std";
+}
+
+.container {
+  width: 85vw;
+  margin: auto;
+}
+
+@media (max-width:700px) {
+  .container{
+    width: 85vw;
+    margin-left: 1em;
+  }
+}
+
+@media (max-width:700px) {
+  .container{
+    width: 90vw;
+    margin: auto;
+  }
+}
+
+img {
+  filter: grayscale(100%);
+  mix-blend-mode: multiply;
+  transition: filter 0.3s ease-in-out;
+  object-fit: cover;
+}
+
+img:hover {
+  filter: grayscale(0);
+  transition: var(--transition);
+}
+
+
+
+/* Global animations and utility classes */
+.underline {
+  display: inline;
+  background-image: linear-gradient(transparent, transparent),
+    linear-gradient(#dd3418, #dd3418);
+  background-size: 100% 2px, 0 2px;
+  background-position: 100% 100%, 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 250ms ease;
+}
+
+.underline:hover {
+  background-size: 0 2px, 100% 2px;
+}
+
+.reverse-underline {
+  display: inline;
+  background-image: linear-gradient(#dd3418, #dd3418),
+    linear-gradient(transparent, transparent);
+  background-size: 100% 2px, 0 2px;
+  background-position: 100% 100%, 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 250ms ease;
+}
+
+.reverse-underline:hover {
+  background-size: 0 2px, 100% 2px;
+}
+
+.reverse-underline-black {
+  display: inline;
+  background-image: linear-gradient(#000, #000),
+    linear-gradient(transparent, transparent);
+  background-size: 100% 1px, 0 1px;
+  background-position: 100% 100%, 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 250ms ease;
+}
+.reverse-underline-black:hover {
+  background-size: 0 1px, 100% 1px;
+}
+
+.left_border {
+  border: solid 2px black;
+  border-left: none;
+  border-top: none;
+  padding-bottom: 1em;
+}
+
+.Dash {
+  display: block;
+  border: dashed var(--clr-primary-3) 1px;
+  margin: auto;
+  margin-block: 0.5em;
+  width: 80%;
+}
+
+@font-face {
+  font-family: "ITC cushing std";
+  src: url("/Fonts/ITC cushing std/CushingStd-Bold.ttf");
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "ITC cushing std";
+  src: url("/Fonts/ITC cushing std/CushingStd-BoldItalic.ttf");
+  font-weight: bold;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "ITC cushing std";
+  src: url("/Fonts/ITC cushing std/CushingStd-Bold.ttf");
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "ITC cushing std";
+  src: url("/Fonts/ITC cushing std/CushingStd-Medium.ttf");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "ITC cushing std";
+  src: url("/Fonts/ITC cushing std/CushingStd-Heavy.ttf");
+  font-weight: bolder;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Billie crimson";
+  src: url("/Fonts/Billie\ crimson/billiecrimsondemo-rgz99.otf");
+}
+
+@font-face {
+  font-family: "Rollking";
+  src: url("/Fonts/Rollking/RollKingDemoRegular.ttf")
+}
+
+
+@font-face {
+  font-family: "GT alpina";
+  src: url("/Fonts/GTalpina/GT-Alpina-Typewriter-Thin-Trial.otf");
+  font-weight: 200;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "GT alpina";
+  src: url("/Fonts/GTalpina/GT-Alpina-Typewriter-Light-Italic-Trial.otf");
+  font-weight: 200;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "GT alpina";
+  src: url("/Fonts/GTalpina/GT-Alpina-Typewriter-Regular-Trial.otf");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "GT alpina";
+  src: url("/Fonts/GTalpina/GT-Alpina-Typewriter-Medium-Trial.otf");
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "GT alpina";
+  src: url("/Fonts/GTalpina/GT-Alpina-Typewriter-Bold-Trial.otf");
+  font-weight: 800;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Gräbenbach";
+  src: url("/Fonts/Gräbenbach/GraebenbachMono-Regular.ttf");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Neue";
+  src: url("/Fonts/Neue.ttf");
+  font-weight: 400;
+  font-style: normal;
+}
+
+
+@font-face {
+  font-family: "Muggle";
+  src: url("/Fonts/mugglenews_by_nathanthenerd_d41qn8p.ttf");
+  font-weight: 400;
+  font-style: normal;
+}
+
+
+
+body {
+  margin: 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #F7F6F2;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+
+.DO_ME {
+  color: #dd3418;
 }
