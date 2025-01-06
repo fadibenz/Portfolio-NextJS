@@ -17,7 +17,7 @@ export function Skills() {
         <ul>
           {skillsList.frontend.map((skill) => (
             <li key={skill.id}>
-              <span className={skill.highlighted ? 'text-primary-red' : ''}>
+              <span className={skill.highlighted ? 'DO_ME' : ''}>
                 {skill.name}
               </span>
             </li>
