@@ -22,7 +22,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-secondary-cream">
+      <body >
         <div className="container">
           <Navigation />
           <main>{children}</main>

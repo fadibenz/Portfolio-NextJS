@@ -35,9 +35,10 @@ const Navigation = () => {
           ))}
         </div>
       </div>
+    
       <div className={styles.divider} />
-      <h1 className={styles.pageTitle}>{getCurrentPageName()}.</h1>
-      <div className={styles.divider} />
+      {/* <h1 className={styles.pageTitle}>{getCurrentPageName()}.</h1>
+      <div className={styles.divider} /> */}
     </nav>
   );
 };

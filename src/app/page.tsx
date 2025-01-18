@@ -1,8 +1,8 @@
 // src/app/page.tsx
 import { About } from '@/components/home/About/About';
-import { Education } from '@/components/home/Education/Education';
+import { Education } from '@/components/home/Ongoings/Ongoings';
 import { Projects } from '@/components/home/Projects/Projects';
-import { Skills } from '@/components/home/Skills/Skills';
+import { Skills } from '@/components/home/Journey/Journey';
 import styles from './page.module.css';
 export default async function Home() {
   return (

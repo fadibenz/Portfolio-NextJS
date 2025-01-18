@@ -1,6 +1,4 @@
 // src/components/layout/Header/Header.tsx
-'use client'
-import { useDate } from '@/hooks/useDate'
 import styles from './Header.module.css'
 
 export function Header() {

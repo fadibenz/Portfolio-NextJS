@@ -32,10 +32,9 @@ export function About() {
         <div>
           <p>
             <span className={styles.firstLetter}>M</span>y name is Fadi Benzaima,
-            I'm a results-oriented Front-End{" "}
-            <span className='DO_ME'>web developer</span> with a global
-            perspective through enriching experiences in Algeria, Finland
-            and the United States.
+            I'm a CS student and a Machine Learning enthusiast{" "}
+            As we approach potential technological <span className='DO_ME'>singularity</span>, 
+            my focus remains on understanding the theoretical foundations that make these advances possible.
             <Image
               src="/images/Me.jpg"
               alt="Personal"
@@ -43,15 +42,11 @@ export function About() {
               height={250}
               className={styles.inlineImage}
             />
-            I have comprehensive experience in modern web development,
-            creating web applications using React and complementing them with
-            web services built on Node.js.
+            Rather than claiming expertise, I maintain the perspective of an eternal student - always questioning, always learning. 
+            I'm interested by both the technical and philosophical aspects of artificial intelligence.
             <span className={styles.spacer} />
-            <span className={styles.DO_ME}>I aimed </span> to give the design
-            a touch of my fondness for newspapers. I remember waiting for my
-            dad to bring home the daily newspaper so I could catch up on
-            what's happening in the world. Hence, my portfolio is influenced
-            by the old-school newspaper vibe.
+            <span className={styles.DO_ME}>I am</span> using this personal website to document my journey, share insights, 
+            reflections, blog posts, my personal notes and more ! 
           </p>
         </div>
       </article>

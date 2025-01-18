@@ -38,3 +38,35 @@ export const skillsList = {
   ],
 };
 
+
+
+export const journeyData = [
+  {
+    id: 1,
+    year: '2021',
+    primary: 'CS Degree',
+    secondary: 'Started studying CS at ESI-SBA.',
+    position: 'right'
+  },
+  {
+    id: 2,
+    year: '2022',
+    primary: 'Web development',
+    secondary: 'Started my journey as a web developer.',
+    position: 'left'
+  },
+  {
+    id: 3,
+    year: '2023',
+    primary: 'USA',
+    secondary: 'First time abroad! I was part of a student exchange program.',
+    position: 'right'
+  },
+  {
+    id: 4,
+    year: '2024',
+    primary: 'Machine Learning',
+    secondary: 'Started learning ML through the courses of UC Berkeley.',
+    position: 'left'
+  }
+] as const

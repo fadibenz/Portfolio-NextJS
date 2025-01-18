@@ -1,6 +1,20 @@
+
 .imageContainer {
-    width: 260px;
-  height: 207px;
+  position: relative;
+  width: 100%;
+  max-width: 260px;
+  aspect-ratio: 260 / 207;
+  margin-bottom: 1em;
+}
+
+.imageContainer img {
+  object-fit: cover;
+}
+
+@media (max-width: 900px) {
+  .imageContainer {
+    max-width: 100%;
+  }
 }
 .Add_info {
   width: 25%;
@@ -49,7 +63,9 @@
     align-items: center;
     margin-top: 2em;
   }
-
+    .imageContainer {
+    max-width: 100%;
+  }
     .Education {
     display: flex;
     gap: 3em;
@@ -68,9 +84,6 @@
     align-items: center;
     margin-top: 0.4em;
     gap: 1em;
-  }
-  .imageContainer{
-    margin-bottom: 0;
   }
   .Education div {
     display: flex;
