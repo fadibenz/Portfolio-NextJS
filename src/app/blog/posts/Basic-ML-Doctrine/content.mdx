@@ -1,0 +1,29 @@
+---
+title: "Basic Standard ML Doctrine: A Deep Dive"
+date: "2024-10-31"
+readingTime: "15 min"
+tags: 
+  - Machine Learning
+  - Learning Theory
+  - Mathematics
+author: "Your Name"
+---
+
+# Basic Standard ML Doctrine
+
+## 1.1 Typical Supervised ML Setup
+
+In supervised machine learning, we work with:
+
+- **Training Data**: <inlineMath>x_i, y_i</inlineMath>, where <inlineMath>x_i</inlineMath> is input (or covariants), <inlineMath>y_i</inlineMath> is label, and <inlineMath>i = 1, 2, ..., n</inlineMath>
+- **Model**: <inlineMath>f_\theta(-)</inlineMath>
+- **Loss Function**: <inlineMath>l(y, \hat{y})</inlineMath>
+- **Optimizer**
+
+Our goal in a supervised ML setup is to make an inference <inlineMath>\hat{y}</inlineMath> on new data <inlineMath>X</inlineMath> as follows:
+
+<math>
+\hat{y} = f_{\hat{\theta}}(X)
+</math>
+
+where <inlineMath>\hat{\theta}</inlineMath> are the learned parameters.

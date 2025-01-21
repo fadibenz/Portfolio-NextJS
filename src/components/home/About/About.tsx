@@ -19,7 +19,7 @@ export function About() {
         <span className="reverse-underline">ABOUT ME</span>
       </h2>
       <h3>
-        <span className="underline">
+        <span className="underlinee">
           Dedicated, ambitious, always an amateur.
         </span>
       </h3>

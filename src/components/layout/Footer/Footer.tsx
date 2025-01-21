@@ -9,11 +9,14 @@ export function Footer() {
       <section className={styles.Footer_main}>
         <article className={styles.Footer_info}>
           <h2>
-            <span className="underline">GET IN TOUCH !</span>
+            <span className="underlinee">GET IN TOUCH !</span>
           </h2>
           <p>Anything to share ?
             Please feel free to ping me at <a type='email' href='benzaimafadi@gmail.com'>
-              <span className='DO_ME underline'>benzaimafadi@gmail.com</span></a> or <a href='https://twitter.com/FadiBenzx'><span className='DO_ME underline'>Twitter</span></a> if you have any questions or just want to talk.</p>
+              <span className='DO_ME underlinee'>benzaimafadi@gmail.com</span></a> or 
+              <a href='https://twitter.com/FadiBenzx'>
+              <span className='DO_ME underlinee'>Twitter</span></a> 
+          if you have any questions or just want to talk.</p>
         </article>
       </section>
       <section className={styles.Footer_secondary}>

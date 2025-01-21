@@ -1,18 +1,18 @@
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-    title: 'My 2025 Resolution: Beyond the Roadmaps | sumit.ml',
-    description: 'Beyond the Roadmaps, Beyond the Timelines - A reflection on learning efficiency',
+    title: 'Basic ML Doctrine',
+    description: 'A deep, yet intuitive understanding of the basic principles of Machine Learning',
     openGraph: {
-        title: 'My 2025 Resolution: Beyond the Roadmaps | sumit.ml',
-        description: 'Beyond the Roadmaps, Beyond the Timelines - A reflection on learning efficiency',
+        title: 'Basic ML Doctrine ',
+        description: '- A deep, yet intuitive understanding of the basic principles of Machine Learning',
         type: 'article',
-        publishedTime: '2025-01-14T00:00:00.000Z',
+        publishedTime: '2025-01-20T20:37:00.000Z',
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'My 2025 Resolution: Beyond the Roadmaps, Beyond the Timelines',
-        description: 'A reflection on learning efficiency',
+        title: 'Basic ML Doctrine',
+        description: 'A deep, yet intuitive understanding of the basic principles of Machine Learning',
     }
 }
 

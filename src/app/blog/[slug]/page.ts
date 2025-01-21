@@ -15,9 +15,9 @@ export async function generateMetadata({ params }: { params: Params }) {
     const { slug } = await params
   
     return {
-      title: `${blogPosts.find(post => post.slug === slug)?.title} | sumit.ml`,
+      title: `${blogPosts.find(post => post.slug === slug)?.title} `,
       openGraph: {
-        title: `${blogPosts.find(post => post.slug === slug)?.title} | sumit.ml`,
+        title: `${blogPosts.find(post => post.slug === slug)?.title}`,
         description: `${blogPosts.find(post => post.slug === slug)?.description}`,
         images: [
           {
@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: { params: Params }) {
       },
       twitter: {
         card: "summary_large_image",
-        title: `${blogPosts.find(post => post.slug === slug)?.title} | sumit.ml`,
+        title: `${blogPosts.find(post => post.slug === slug)?.title}`,
         description: `${blogPosts.find(post => post.slug === slug)?.description}`,
         images: [
           {

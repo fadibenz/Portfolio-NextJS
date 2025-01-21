@@ -19,7 +19,7 @@ export function Education() {
             <span className="reverse-underline">Current Ongoings</span>
           </h2>
           <h3 className={styles.subtitle}>
-            <span className="underline"></span>
+            <span className="underlinee"></span>
           </h3>
           <p className={styles.description}>
             Currently diving deep into neural network architectures and deep learning fundamentals
