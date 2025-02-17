@@ -9,6 +9,17 @@ module.exports = {
   darkMode: ["class"],
   theme: {
     extend: {
+      typography: {
+        DEFAULT: {
+          css: {
+            h1: { fontSize: '2.5rem' },
+            h2: { fontSize: '2rem' },
+            h3: { fontSize: '1.75rem' },
+            h4: { fontSize: '1.5rem' },
+            // ...add other customizations
+          },
+        },
+      },
       colors: {
         primary: {
           1: "var(--clr-primary-1)",

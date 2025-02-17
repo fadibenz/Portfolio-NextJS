@@ -1,5 +1,6 @@
 "use client"
 
+import React, { useEffect, useRef } from "react"
 import type { MDXComponents } from "mdx/types"
 import TextHeading from "@/components/ui/text-heading/text-heading"
 import Text from "@/components/ui/text/text"
@@ -11,9 +12,10 @@ import CodeBlock from "@/components/blocks/code-block/code-block"
 import Image from "next/image"
 import "katex/dist/katex.min.css"
 import katex from "katex"
-import { useEffect, useRef } from "react"
 
-// Custom Math Components
+// ----------------------------------------------------------------------
+// Custom Math Component
+// ----------------------------------------------------------------------
 const MathDisplay = ({
     math,
     display = false,
@@ -24,17 +26,17 @@ const MathDisplay = ({
     const mathRef = useRef<HTMLSpanElement>(null)
 
     useEffect(() => {
-        if (!math) return; // Add null check
+        if (!math) return
 
         if (mathRef.current) {
             try {
                 katex.render(math, mathRef.current, {
                     displayMode: display,
                     throwOnError: false,
-                    strict: false // Add this for more forgiving parsing
+                    strict: false, // More forgiving parsing
                 })
             } catch (error) {
-                console.error('KaTeX parsing error:', error);
+                console.error("KaTeX parsing error:", error)
             }
         }
     }, [math, display])
@@ -42,16 +44,15 @@ const MathDisplay = ({
     return <span ref={mathRef} />
 }
 
-
-
+// ----------------------------------------------------------------------
+// MDX Components Configuration
+// ----------------------------------------------------------------------
 export const mdxComponents: MDXComponents = {
     h1: ({ children }) => (
-        <TextHeading as="h1" weight="bold" className="mt-8 mb-4">
-            {children?.toString()}
+        <TextHeading as="h1" weight="bold" className="mt-8 mb-4 text-4xl">
+            {children}
         </TextHeading>
     ),
-
-
     h2: ({ children }) => (
         <TextHeading as="h2" weight="bold" className="mt-6 mb-3">
             {children}
@@ -68,16 +69,31 @@ export const mdxComponents: MDXComponents = {
         </TextHeading>
     ),
 
-    inlineMath: ({ children }) => (
-        <span className="inline-block align-middle">
-            <MathDisplay math={children as string} display={false} />
-        </span>
-    ),
-    math: ({ children }) => (
-        <div className="my-4 flex justify-center">
-            <MathDisplay math={children as string} display={true} />
-        </div>
-    ),
+    // Inline math (e.g. $...$)
+    inlineMath: ({ children }) => {
+        const mathContent =
+            typeof children === "string"
+                ? children
+                : React.Children.toArray(children).join("")
+        return (
+            <span className="inline-block align-middle">
+                <MathDisplay math={mathContent} display={false} />
+            </span>
+        )
+    },
+
+    // Display math (e.g. $$...$$)
+    math: ({ children }) => {
+        const mathContent =
+            typeof children === "string"
+                ? children
+                : React.Children.toArray(children).join("")
+        return (
+            <div className="my-4 flex justify-center">
+                <MathDisplay math={mathContent} display={true} />
+            </div>
+        )
+    },
 
     img: ({ src, alt, width, height }) => (
         <div className="my-6 relative rounded-lg overflow-hidden">
@@ -89,11 +105,19 @@ export const mdxComponents: MDXComponents = {
                 className="rounded-lg"
                 loading="lazy"
             />
-            {alt && <figcaption className="text-sm text-center text-muted-foreground mt-2">{alt}</figcaption>}
+            {alt && (
+                <figcaption className="text-sm text-center text-muted-foreground mt-2">
+                    {alt}
+                </figcaption>
+            )}
         </div>
     ),
 
-    p: ({ children }) => <Text className="mb-4 text-foreground dark:text-foreground">{children}</Text>,
+    p: ({ children }) => (
+        <Text className="mb-4 text-foreground dark:text-foreground">
+            {children}
+        </Text>
+    ),
 
     ul: ({ children }) => <List className="mb-4">{children}</List>,
     ol: ({ children }) => (
@@ -103,37 +127,38 @@ export const mdxComponents: MDXComponents = {
     ),
     li: ({ children }) => <ListItem>{children}</ListItem>,
 
-    strong: ({ children }) => <span className="font-bold text-foreground dark:text-foreground">{children}</span>,
-    em: ({ children }) => <span className="italic text-muted-foreground dark:text-muted-foreground">{children}</span>,
+    strong: ({ children }) => (
+        <span className="font-bold text-foreground dark:text-foreground">
+            {children}
+        </span>
+    ),
+    em: ({ children }) => (
+        <span className="italic text-muted-foreground dark:text-muted-foreground">
+            {children}
+        </span>
+    ),
 
     code: ({ children, className }) => {
-        if (!children) return null;
-
+        const codeString = React.Children.toArray(children).join("")
         const match = /language-(\w+)/.exec(className || "")
         const language = match ? match[1] : ""
-
-        const codeString = typeof children === 'string'
-            ? children
-            : Array.isArray(children)
-                ? children.join('')
-                : '';
-
         if (!language) {
             return (
-                <code className={cn(
-                    monoFont.className,
-                    "px-1.5 py-0.5 mx-0.5 my-0.5",
-                    "text-inherit",
-                    "bg-purple-100/80 dark:bg-purple-900/50",
-                    "text-purple-800 dark:text-purple-200",
-                    "rounded-md",
-                    "inline-block leading-normal",
-                )}>
+                <code
+                    className={cn(
+                        monoFont.className,
+                        "px-1.5 py-0.5 mx-0.5 my-0.5",
+                        "text-inherit",
+                        "bg-purple-100/80 dark:bg-purple-900/50",
+                        "text-purple-800 dark:text-purple-200",
+                        "rounded-md",
+                        "inline-block leading-normal"
+                    )}
+                >
                     {codeString}
                 </code>
             )
         }
-
         return <CodeBlock code={codeString} language={language} />
     },
 
@@ -142,7 +167,7 @@ export const mdxComponents: MDXComponents = {
             className={cn(
                 "pl-4 border-l-2 border-purple-500/50",
                 "my-4 italic",
-                "text-muted-foreground/90 dark:text-muted-foreground/90",
+                "text-muted-foreground/90 dark:text-muted-foreground/90"
             )}
         >
             {children}
@@ -159,7 +184,7 @@ export const mdxComponents: MDXComponents = {
                 "transition-colors duration-200",
                 "underline underline-offset-4",
                 "decoration-purple-300/50 dark:decoration-purple-500/50",
-                "hover:decoration-purple-400 dark:hover:decoration-purple-400",
+                "hover:decoration-purple-400 dark:hover:decoration-purple-400"
             )}
             target={href?.startsWith("http") ? "_blank" : undefined}
             rel={href?.startsWith("http") ? "noopener noreferrer" : undefined}
@@ -169,4 +194,3 @@ export const mdxComponents: MDXComponents = {
         </a>
     ),
 }
-

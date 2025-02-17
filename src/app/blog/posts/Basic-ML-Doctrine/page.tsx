@@ -7,6 +7,10 @@ import { StackVertical } from "@/components/layout/layout-stack/layout-stack"
 import TextHeading from "@/components/ui/text-heading/text-heading"
 import Text from "@/components/ui/text/text"
 import { mdxComponents } from "@/lib/mdx/mdx-components"
+import remarkGfm from "remark-gfm"
+import remarkMath from "remark-math"
+import rehypeKatex from "rehype-katex"
+import rehypePrism from "rehype-prism-plus"
 import styles from "../../_components/BlogHeader.module.css"
 
 interface BlogMetadata {
@@ -26,10 +30,7 @@ interface BlogPostProps {
 
 export async function generateStaticParams() {
   // Add your logic to get all blog slugs
-  return [
-    { slug: "basic-ml-doctrine" },
-    // Add other blog slugs
-  ]
+  return [{ slug: "basic-ml-doctrine" }]
 }
 
 export async function generateMetadata({ params }: BlogPostProps) {
@@ -58,20 +59,22 @@ export async function generateMetadata({ params }: BlogPostProps) {
 }
 
 export default async function BlogPost({ params }: BlogPostProps) {
-
   // Read MDX content
-  const filePath = path.join(process.cwd(), `src/app/blog/posts/Basic-ML-Doctrine/content.mdx`)
+  const filePath = path.join(
+    process.cwd(),
+    `src/app/blog/posts/Basic-ML-Doctrine/content.mdx`
+  )
   const source = await readFile(filePath, "utf8")
 
-  // Compile MDX
+  // Compile MDX with proper remark/rehype plugins
   const { content } = await compileMDX({
     source,
     components: mdxComponents,
     options: {
       parseFrontmatter: true,
       mdxOptions: {
-        remarkPlugins: [],
-        rehypePlugins: [],
+        remarkPlugins: [remarkGfm, remarkMath],
+        rehypePlugins: [rehypeKatex, rehypePrism],
       },
     },
   })
@@ -115,7 +118,7 @@ export default async function BlogPost({ params }: BlogPostProps) {
           </header>
 
           {/* Main Content */}
-          <article className="prose dark:prose-invert max-w-none">{content}</article>
+          <article className=" max-w-none">{content}</article>
 
           {/* Footer Section */}
           {metadata.author && (
@@ -130,4 +133,3 @@ export default async function BlogPost({ params }: BlogPostProps) {
     </BaseContainer>
   )
 }
-

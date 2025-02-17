@@ -7,9 +7,9 @@ import rehypePrism from 'rehype-prism-plus'
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   pageExtensions: ["js", "jsx", "mdx", "ts", "tsx"],
-  experimental: {
-    mdxRs: true
-  }
+  // experimental: {
+  //   mdxRs: false
+  // }
 }
 
 const withMDX = createMDX({
