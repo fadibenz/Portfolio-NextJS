@@ -1,10 +1,12 @@
-// filepath: /tailwind.config.js
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/lib/**/*.{js,ts,jsx,tsx,mdx}",  // Added lib directory
+    "./mdx-components.tsx",  // Add if you have this file
+    "./src/lib/mdx/**/*.{js,ts,jsx,tsx}", // Specifically include MDX components
   ],
   darkMode: ["class"],
   theme: {
@@ -16,7 +18,6 @@ module.exports = {
             h2: { fontSize: '2rem' },
             h3: { fontSize: '1.75rem' },
             h4: { fontSize: '1.5rem' },
-            // ...add other customizations
           },
         },
       },
@@ -52,5 +53,7 @@ module.exports = {
       }
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'), // Add typography plugin
+  ],
 }

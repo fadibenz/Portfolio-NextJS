@@ -96,7 +96,7 @@ h3 {
 }
 
 .container {
-  width: 85vw;
+  width: 90vw;
   margin: auto;
 }
 
@@ -316,7 +316,9 @@ code {
   font-family: "ITC cushing std"
 }
 
-
+h3 {
+  color: red;
+}
 .DO_ME {
   color: #dd3418;
 }

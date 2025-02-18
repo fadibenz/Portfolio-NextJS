@@ -16,6 +16,22 @@ import katex from "katex"
 // ----------------------------------------------------------------------
 // Custom Math Component
 // ----------------------------------------------------------------------
+
+function MdxImage(props: React.ImgHTMLAttributes<HTMLImageElement>) {
+  return (
+    <img
+      {...props}
+      className="max-w-5"
+      style={{
+        filter: "none",  // force no grayscale
+        ...props.style,
+      }}
+    />
+  )
+}
+
+
+
 const MathDisplay = ({
     math,
     display = false,
@@ -45,13 +61,70 @@ const MathDisplay = ({
 }
 
 // ----------------------------------------------------------------------
-// MDX Components Configuration
+// Custom Admonition Component
 // ----------------------------------------------------------------------
+type AdmonitionType = "info" | "warning" | "danger" | "tip" | "note" | "seealso"
+
+interface AdmonitionProps {
+    type: AdmonitionType
+    title?: string
+    children: React.ReactNode
+}
+
+export const Admonition = ({ type, title, children }: AdmonitionProps) => {
+    let bgColor = "bg-gray-50"
+    let borderColor = "border-gray-400"
+    let textColor = "text-gray-700"
+
+    switch (type) {
+        case "info":
+            bgColor = "bg-blue-50"
+            borderColor = "border-blue-400"
+            textColor = "text-blue-700"
+            break
+        case "warning":
+            bgColor = "bg-yellow-50"
+            borderColor = "border-yellow-400"
+            textColor = "text-yellow-700"
+            break
+        case "danger":
+            bgColor = "bg-red-50"
+            borderColor = "border-red-400"
+            textColor = "text-red-700"
+            break
+        case "tip":
+            bgColor = "bg-green-50"
+            borderColor = "border-green-400"
+            textColor = "text-green-700"
+            break
+        case "note":
+            bgColor = "bg-indigo-50"
+            borderColor = "border-indigo-400"
+            textColor = "text-indigo-700"
+            break
+        case "seealso":
+            bgColor = "bg-purple-50"
+            borderColor = "border-purple-400"
+            textColor = "text-purple-700"
+            break
+        default:
+            break
+    }
+
+    return (
+        <div className={`p-4 border-l-4 ${bgColor} ${borderColor} my-4`}>
+            {title && <div className={`font-bold ${textColor} mb-2`}>{title}</div>}
+            <div className={textColor}>{children}</div>
+        </div>
+    )
+}
+
+
 export const mdxComponents: MDXComponents = {
     h1: ({ children }) => (
-        <TextHeading as="h1" weight="bold" className="mt-8 mb-4 text-4xl">
+        <h1  className="mt-8 mb-4 text-4xl DO_ME">
             {children}
-        </TextHeading>
+        </h1>
     ),
     h2: ({ children }) => (
         <TextHeading as="h2" weight="bold" className="mt-6 mb-3">
@@ -68,7 +141,6 @@ export const mdxComponents: MDXComponents = {
             {children}
         </TextHeading>
     ),
-
     // Inline math (e.g. $...$)
     inlineMath: ({ children }) => {
         const mathContent =
@@ -89,7 +161,7 @@ export const mdxComponents: MDXComponents = {
                 ? children
                 : React.Children.toArray(children).join("")
         return (
-            <div className="my-4 flex justify-center">
+            <div className="my-4 flex justify-center text-red-500">
                 <MathDisplay math={mathContent} display={true} />
             </div>
         )
@@ -114,9 +186,7 @@ export const mdxComponents: MDXComponents = {
     ),
 
     p: ({ children }) => (
-        <Text className="mb-4 text-foreground dark:text-foreground">
-            {children}
-        </Text>
+        <Text className="mb-4 text-black-500">{children}</Text>
     ),
 
     ul: ({ children }) => <List className="mb-4">{children}</List>,
@@ -174,7 +244,6 @@ export const mdxComponents: MDXComponents = {
         </blockquote>
     ),
     hr: () => <Ruler color="gray" marginTop="md" marginBottom="md" />,
-
     a: ({ href, children, ...props }) => (
         <a
             href={href}
@@ -193,4 +262,13 @@ export const mdxComponents: MDXComponents = {
             {children}
         </a>
     ),
+
+    // --------------------------------------------------------------------
+    // Custom Admonition Component mapping for MDX usage
+    // --------------------------------------------------------------------
+    Admonition: ({ type, title, children }: {
+        type: AdmonitionType
+        title?: string
+        children: React.ReactNode
+    }) => <Admonition type={type} title={title}>{children}</Admonition>,
 }

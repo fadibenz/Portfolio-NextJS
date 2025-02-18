@@ -12,6 +12,7 @@ export function BlogHeader() {
                 <Text variant="muted" size="sm" >
                     Thoughts on programming, machine learning, and technology.
                 </Text>
+                
             </div>
         </StackVertical>
     )

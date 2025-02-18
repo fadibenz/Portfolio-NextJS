@@ -1,230 +1,253 @@
----
-title: "Basic Standard ML Doctrine: A Deep Dive"
-date: "2024-10-31"
-readingTime: "15 min"
-tags: 
-  - Machine Learning
-  - Learning Theory
-  - Mathematics
-author: "Your Name"
----
-2024-10-31 2024-10-31 13:13
 
-Tags: [[Learning Theory]]
-
-# Basic Standard ML Doctrine
 
 ### 1.1 Typical Supervised ML Setup
+
 
 - **Training Data**: $x_i, y_i$, where $x_i$ is input (or covariants), $y_i$ is label, and $i = 1, 2, ..., n$
 - **Model**: $f_\theta(-)$
 - **Loss Function**: $l(y, \hat{y})$
 - **Optimizer**
 
-Our goal of a supervised ML setup is to make an inference $\hat{y}$ on new data $X$ as follows: 
+Our goal in a supervised ML setup is to make an inference $\hat{y}$ on new data $X$ as follows:
 
-$\hat{y} = f_{\hat{\theta}}(X)$, where $\hat{\theta}$ are the learned parameters.
+$$
+\hat{y} = f_{\hat{\theta}}(X)
+$$
 
-## 2- Empirical Risk Minimization (ERM)-Optimization Perspective
+where $\hat{\theta}$ are the learned parameters.
+
+---
+
+### 2- Empirical Risk Minimization (ERM)-Optimization Perspective
 
 How do we learn parameters $\theta$? The basic approach is to find the optimal $\theta$ for our optimization problem:
 
-$$\hat{\theta} = \arg\min_{\theta} \frac{1}{n} \sum_{i=1}^{n} l(y_i, f_\theta(x_i))$$
-
-### Probabilistic Interpretation
-We can extend this to maximum likelihood estimation (MLE), where our loss function $l(y, \hat{y})$ is interpreted as the negative log-likelihood function.  We preform MLE on parameter $f_\theta$ and see what loss function we would need to minimize, the result would depend on the noise distribution we have chosen. For more, Read [[Statistical Justifications]]
-
+$$
+\hat{\theta} = \arg\min_{\theta} \frac{1}{n} \sum_{i=1}^{n} l(y_i, f_\theta(x_i))
+$$
 
 The big picture goal for supervised machine learning is to achieve good performance in the real world when the model is deployed. 
 
-In practice, this is difficult to achieve because in the real world, there are unexpected circumstances (**Uncertainty**) that we do not have data for and therefore cannot actually represent in our model. 
+In practice, this is difficult to achieve because in the real world, there are unexpected circumstances (**Uncertainty**) that we do not have data to account for and therefore cannot actually represent in our model. 
 
 As a result, we must use a mathematical proxy so that our model has a low generalization error.
 
-![[Pasted image 20241101123201.png]]
+![math_Proxy](/images/proxy.png)
 
 We model the real world using a probability distribution $P(X, y)$ and aim to *minimize* the expectation of our loss function (we would have the optimal classifier, also known as _Bayes predictor_):
 
-$$E_{X,y}[l(y, f_{\hat{\theta}}(X))]$$
+$$
+E_{X,y}[l(y, f_{\hat{\theta}}(X))]
+$$
 
-This is called the True Risk (aka **generalization error**) of our hypothesis. In Discriminative models we don't know the $X$'s distribution, How can we minimize the risk then ?
+This is called the True Risk (aka **generalization error**) of our hypothesis. In Discriminative models we don't know the $X$'s distribution, **How can we minimize the risk then?**
 
 We approximate the distribution in a crude way: we pretend the sample points *are* the distribution.  
+
 This introduces two concepts: 
 
-1. *Empirical distribution:* the ==discrete== uniform distribution over the sample pts.
-2. *Empirical Risk:* expected loss under empirical distribution.  
-$$\hat{R}(h) = \frac{1}{n} \sum^n_{i=1} L(y_i, f_{\hat{\theta}}(X_i) )$$
+1. *Empirical distribution:* the ==discrete== uniform distribution over the sample points.
+2. *Empirical Risk:* expected loss under the empirical distribution.  
 
-The empirical Risk is only a cheap approximation of the true, unknown statistical risk $R$ we really want to minimize. Often, this is the best we can do. But, fortunately, the empirical risk converges to the True Risk in the limit as $n \to \infty$, and is therefore a good approximation under *strict conditions*, you can read more in [[Learning Theory]]. 
+   $$
+   \hat{R}(h) = \frac{1}{n} \sum_{i=1}^{n} L(y_i, f_{\hat{\theta}}(X_i))
+   $$
 
->[!important] 
->
->When we derive the empirical risk we suppose that our sample pts follow a discrete uniform distribution, this is why we minimize the average of the loss functions.
->
->But sometimes we can take the maximum loss as our risk. In statistical learning theory, this is known as the difference between average-case and worst-case optimization.  The statistical justification is rooted in *Robust Statistics*.  
->
->It also has connections with PAC learning and Game theory. You can read more at: =="Foundations of Machine Learning" by Mohri et al. (Chapter 2: The PAC Learning Framework)==
->
->Maximum loss optimization is particularly useful in:
->1. Safety-critical applications
->2. Adversarial settings
->3. When outliers are meaningful
->4. When uniform performance guarantees are required
+The empirical risk is only a cheap approximation of the true, unknown statistical risk $R$ we really want to minimize. Often, this is the best we can do. 
 
+But, fortunately, the empirical risk converges to the True Risk in the limit as $n \to \infty$, and is therefore a good approximation under *strict conditions*—this is formalized in Learning Theory. 
+
+>
+> **Note:** When we derive the empirical risk we suppose that our sample points follow a discrete uniform distribution, which is why we minimize the average of the loss functions.
+> 
+> Another common paradigm is to take the *maximum* loss as our risk. In statistical learning theory, this is known as the difference between average-case and worst-case optimization. The statistical justification for using the maximum loss is rooted in *Robust Statistics*.  
+> 
+> The justification also has connections with PAC learning and Game Theory. You can read more at: =="Foundations of Machine Learning" by Mohri et al. (Chapter 2: The PAC Learning Framework)==  
+> 
+> Maximum loss optimization is particularly useful in:
+> 1. Safety-critical applications
+> 2. Adversarial settings
+> 3. When outliers are meaningful
+> 4. When uniform performance guarantees are required
 
 However, our mathematical proxy introduces a few complications.
+
 ### Complications and Solutions
 
-### **Complication 1:** 
+---
+
+#### **Complication 1:**
 We do not have access to $P(X, y)$.
 
-**Solution**: We will mimic this unknown distribution. Collect a test set $(x_{i,test}, y_{i,test})_{i=1}^{n_{test}}$ to evaluate the learned model by getting test error:
-$$\frac{1}{n_{test}} \sum_{i=1}^{n_{test}} l(y_{i,test}, f_{\hat{\theta}}(x_{i,test}))$$
+**Solution**: We will mimic this unknown distribution. Collect a test set $(x_{i,\text{test}}, y_{i,\text{test}})_{i=1}^{n_{\text{test}}}$ to evaluate the learned model by getting test error:
 
-As mentioned before, the $ERM$, is an effective way to approximate the unknown distribution. 
+$$
+\frac{1}{n_{\text{test}}} \sum_{i=1}^{n_{\text{test}}} l(y_{i,\text{test}}, f_{\hat{\theta}}(x_{i,\text{test}}))
+$$
 
-To evaluate how well our model performs with unseen data, we use the carefully held-out test set, it will mimic the unknown distribution. 
+As mentioned before, ERM is an effective way to approximate the unknown distribution. 
 
-The model is desired to be tested once because it is not only hard to collect test data but also there is a risk of data incest of test data while designing the model. 
+To evaluate how well our model performs with unseen data, we use a carefully held-out test set—it will mimic the unknown distribution. The model is desired to be tested once because it is not only hard to collect test data but also there is a risk of data incest if the test data is used during model design. 
 
-If we keep tuning the model based on the test set, we will start *indirectly* leaking information, and the test set will not be unseen data anymore. 
-We will start fitting the model to this data, rather than using it as means of mimicking the unknown distribution and generalizing to the broader distribution.  
+If we keep tuning the model based on the test set, we will start *indirectly* leaking information, and the test set will no longer be truly unseen. 
+
+We will start fitting the model to this data rather than using it solely as a means of mimicking the unknown distribution and generalizing to the broader population.  
 
 As a result, the test performance might look artificially good, but it no longer reflects how the model would perform on genuinely unseen data.
 
-Therefore, you will need to tune everything and get a satisfying model by only Iterating with the Training and Validation Sets. After selecting the best model *Use the Test Set Only Once for Final Evaluation*  as test data are not supposed to affect the model or be used for tuning parameters.  
+Therefore, you need to tune everything and get a satisfying model by iterating only with the Training and Validation sets. **Use the Test Set Only Once for Final Evaluation** as test data are not supposed to affect the model or be used for tuning parameters.  
 
 If test performance is poor at this stage, it typically means the model’s overall approach needs rethinking (*it doesn't generalize well*), rather than further tuning. For instance, you might reconsider feature engineering, data pre-processing, or try a fundamentally different model.
 
->[!seealso]  An Extra “True” Test Set for Critical Applications
->
->In some high-stakes cases (e.g., medical or financial applications), you may want to reserve an additional test set—sometimes called a **"challenge" or "deployment" set**—for a truly final evaluation. This extra set remains entirely unseen until the model is fully finalized.
-### **Complication 2:** 
+> [!seealso]  
+> **An Extra “True” Test Set for Critical Applications:**  
+> In some high-stakes cases (e.g., medical or financial applications), you may want to reserve an additional test set—sometimes called a **"challenge" or "deployment" set**—for a truly final evaluation. This extra set remains entirely unseen until the model is fully finalized.
+
+---
+
+#### **Complication 2:**
 
 The loss we care about may be incompatible with our optimizer.
 
-When we say the loss we care about it can refer to: 
+When we say the loss we care about, it can refer to: 
 
-1. **The loss that truly measures the model’s real-world performance**, which could be derived from a **Maximum Likelihood Estimation (MLE)** or **Maximum A Posteriori (MAP)** interpretation, depending on the probabilistic assumptions we make about the data and model. for example, if we are doing regression and we suppose a normal distribution of noise, MLE tells us we should use RSS as our loss.
-2. **The evaluation metric** that is most relevant for the task. For example, in a classification task, we may care about **accuracy** or **F1 score** as our evaluation criteria, the thing is, these metrics may not be compatible with the optimizer. 
+1. **The loss that truly measures the model’s real-world performance**, which could be derived from a **Maximum Likelihood Estimation (MLE)** or **Maximum A Posteriori (MAP)** interpretation, depending on the probabilistic assumptions we make about the data and model. For example, if we are doing regression and suppose a normal distribution of noise, MLE tells us we should use RSS as our loss.
+2. **The evaluation metric** that is most relevant for the task. For example, in a classification task, we may care about **accuracy** or **F1 score** as our evaluation criteria; however, these metrics may not be compatible with the optimizer. 
 
-This causes a problem. For example, our optimizer will use derivatives to find optimal parameters, but our loss function (For example the $0-1$ loss) may not have nice derivatives everywhere.
+This causes a problem. For example, our optimizer will use derivatives to find optimal parameters, but our loss function (for example, the $0-1$ loss) may not have nice derivatives everywhere.
 
-**Solution**: Use a surrogate loss function $l_{train}(., .)$ that does have nice derivatives, computes fast, and works with the optimizer. 
+**Solution**: Use a surrogate loss function $l_{\text{train}}(., .)$ that does have nice derivatives, computes fast, and works with the optimizer. 
 
-We use this surrogate loss function to guide learning of the model. The real loss function is used to evaluate the model. 
+We use this surrogate loss function to guide the learning of the model. The real loss function is used to evaluate the model. 
 
-Some standard loss functions include *squared error* (regression); *logistic, hinge, and exponential loss* (binary classification); and *cross-entropy loss* (multiclass classification). 
+Some standard loss functions include *squared error* (for regression), *logistic, hinge, and exponential loss* (for binary classification), and *cross-entropy loss* (for multiclass classification). 
 
-You may want to choose a loss function based on the application settings of the problem and model. 
+You may choose a loss function based on the application settings of the problem and model. 
 
-This surrogate loss function is different from the evaluation loss function from **complication 1**. 
+Remember, the surrogate loss function is used for training the model, while the evaluation loss function is used to see how well your model works with new test data. 
 
-The surrogate loss function is used for training the model, and the evaluation loss function is to see how well your model works with new test data. 
+A few things to remember when choosing an appropriate surrogate loss function are:
+- It should be compatible with the optimizer.
+- It should guide the model toward the correct solutions.
+- It should run fast enough (e.g., be easy to differentiate).
 
-A few things to remember for choosing an appropriate surrogate loss function are it should be compatible with the optimizer, guide the model to the correct solutions, and run fast enough (e.g. easy to take derivatives). 
+For instance, the squared loss $l_{\text{train}} = (y_i - \hat{y}_i)^2$ (or in vector form, $l_{\text{train}} = \|y - \hat{y}\|^2$) is a good example.
 
-The squared loss $l_{train} = (y_i − \hat{y}_i)^2$ or in the vector form, $l_{train} = ||y − \hat{y}||^2$ is a good example of running fast enough.
+> [!danger]  
+> **Consistency**  
+> The property of whether minimizing the $Ψ$-risk (risk using surrogate loss) leads to a function that also minimizes the $ℓ$-risk (risk using the real loss) is often referred to as _consistency_.  
+>  
+> This property depends on the surrogate function $Ψ$: for some functions it holds, and for others, it does not. One useful characterization was given in  ==P. L. Bartlett, M. I. Jordan, and J. D. McAuliffe, “Convexity, Classification and Risk Bounds,” J. Am. Stat. Assoc., pp. 1–36, 2003==.  
+>  
+> It states that if $Ψ$ is convex then it is consistent if and only if it is differentiable at zero and $Ψ′(0)<0$. This includes most commonly used surrogate loss functions, including the hinge, logistic, and Huber loss functions.
+>  
+> Keep in mind that while differentiability was our focus, the convexity aspect is more critical in classical ML than in deep learning. One of the premises of DL is handling nonconvex problems (see [Yann LeCun Talk on Convexity](https://videolectures.net/videos/eml07_lecun_wia)).
 
->[!danger]  Consistency
->  The property of whether minimizing the $Ψ-risk$ (Risk using surrogate loss) leads to a function that also minimizes the $ℓ-risk$ (Risk using real loss) is often referred to as _consistency_. 
->  
->  This property will depend on the surrogate function $Ψ$: for some functions $Ψ$ it will be verified the consistency property and for some not. One of the most useful characterizations was given in  ==P. L. Bartlett, M. I. Jordan, and J. D. McAuliffe, “Convexity , Classification and Risk Bounds,” J. Am. Stat. Assoc., pp. 1–36, 2003==  
->  
->  It states that if $Ψ$ is convex then it is consistent if and only if it is differentiable at zero and $Ψ′(0)<0$. This includes most of the commonly used surrogate loss functions, including hinge, logistic regression and Huber loss functions.
+---
 
-something to keep in mind is the fact that we only mentioned the fact that our loss functions are differentiable, the convex part is relevant in ML but less relevant in DL, one of the main premises of DL is to be able to deal with problems outside of convexity, [Yann LeCun Talk on Convexity](https://videolectures.net/videos/eml07_lecun_wia)  
-## 3. Hyperparameters & Parameters
+### 3. Hyperparameters & Parameters
 
-### **Complication 3:** 
+#### **Complication 3:**
 
 We might get extreme values for $\hat{\theta}$ (e.g., over-fitting).
 
-**Solution**:
+**Solution:**
 
-   - **Solution A:** Add a regularizer during training:
+- **Solution A:** Add a regularizer during training:
 
-     $$ \hat{\theta} = \arg \min_\theta \left[ \frac{1}{n} \sum_{i=1}^{n} l_\text{train}(y_i, f_\theta(x_i)) + R(\theta) \right] \tag{3.1} $$
+  $$
+  \hat{\theta} = \arg \min_\theta \left[ \frac{1}{n} \sum_{i=1}^{n} l_{\text{train}}(y_i, f_\theta(x_i)) + R(\theta) \right] \tag{3.1}
+  $$
 
-     Here, $R(\theta)$ is the regularizer, which can be chosen based on the loss function. For example, if squared loss is used as the loss function, ridge regularization ($R(\theta) = \lambda ||\theta||^2$) might be used as the corresponding regularizer to prevent $\hat{\theta}$ from becoming too large. 
-     
-     In the probability interpretation of regularization (i.e., *Maximum A Posteriori (MAP) estimation*), $R(\theta)$ corresponds to a prior distribution that helps balance between the unpenalized loss function and $R(\theta)$. The introduction of $R(\theta)$ also brings in a new hyperparameter, $\lambda$, to the regularizer.
-     
-     ##### Example: Bayesian Justification for Ridge Reg.
-     
-		Assign a prior probability on $w_0$: $w_0 \sim N(0, \sigma^2)$, with PDF $f(w_0) \propto e^{-\|w_0\|^2/(2\sigma^2)}$
-		This prior probability says that we think weights close to zero are more likely to be correct.
+  Here, $R(\theta)$ is the regularizer, which can be chosen based on the loss function. For example, if squared loss is used, ridge regularization ($R(\theta) = \lambda \|\theta\|^2$) might be used to prevent $\hat{\theta}$ from becoming too large. 
 
-		Apply MAP.
+  In the probability interpretation of regularization (i.e., *Maximum A Posteriori (MAP) estimation*), $R(\theta)$ corresponds to a prior distribution that helps balance between the unpenalized loss and the regularizer. Note that introducing $R(\theta)$ brings a new hyperparameter, $\lambda$, into the model.
 
-		Bayes' Theorem: posterior $f_{W|X,Y}(w) = \frac{f_{Y|X,W}(y)f(w_0)}{f_{Y|X}(y)}$
+  ##### Example: Bayesian Justification for Ridge Regularization
 
-		Maximize log posterior = $\ln f_{Y|X,W}(y) + \ln f(w_0) - const$
-		$= const\|Xw - y\|^2 - const\|w_0\|^2 - const$
-		$\Rightarrow$ Minimize $\|Xw - y\|^2 + \lambda\|w_0\|^2$
+  - **Assign a prior probability on $w_0$:**  
+    $w_0 \sim N(0, \sigma^2)$ with PDF  
+    $$
+    f(w_0) \propto e^{-\|w_0\|^2/(2\sigma^2)}
+    $$  
+    This prior implies that weights near zero are more likely.
+  
+  - **Apply MAP:**  
+    Bayes' Theorem gives the posterior  
+    $$
+    f_{W|X,Y}(w) = \frac{f_{Y|X,W}(y)\,f(w_0)}{f_{Y|X}(y)}
+    $$
+  
+    Maximizing the log-posterior yields:  
+    $$
+    \ln f_{Y|X,W}(y) + \ln f(w_0) - \text{const} = \text{const}\,\|Xw - y\|^2 - \text{const}\,\|w_0\|^2 - \text{const}
+    $$
+  
+    Thus, minimizing  
+    $$
+    \|Xw - y\|^2 + \lambda\|w_0\|^2
+    $$
+    is equivalent to MAP estimation.
 
-		We are treating $w$ and $y$ as random variables, but $X$ as a fixed constant—it's not random.
+> [!example]  
+> **Example:** Ridge regularization uses  
+> $$
+> R(\theta) = \lambda \|\theta\|^2
+> $$  
+> to control the magnitude of $\theta$. Adding $R(\theta)$ helps prevent overfitting by regularizing the parameters.
 
-> [!example]
-> **Example**: Ridge regularization uses $R(\theta) = \lambda ||\theta||^2$ to control the magnitude of $\theta$. Adding $R(\theta)$ helps prevent overfitting by regularizing $\theta$.
+- **Solution B:** Split parameters into two groups: **Normal Parameters** $(\theta)$ and **Hyperparameters** $(\theta_H)$.
+  
+  A **hyperparameter** is a parameter that cannot be directly trained by the optimizer; if treated as a normal parameter, it might take on extreme values. For example, in ridge regularization, $\lambda$ is a hyperparameter. Other examples include the model order or the degree of a polynomial function $f_\theta(x_i)$.
 
-+ **Solution B:** Split parameters into two groups: Normal Parameters $(\theta)$ and Hyperparameters $(\theta_H)$.
+A good rule of thumb in ML/DL is to start with settings that have worked in previous studies, then adjust as needed.
 
-	A **hyperparameter** is a parameter that cannot be directly trained or optimized, if you let the optimizer just work with it, *it will give it crazy values*. 
-	For example, in the ridge regularization example above, $\lambda$ would be considered a hyperparameter since including it as a normal parameter could result in extreme or impractical values (e.g., 0 or negative infinity). Another common example of a hyperparameter is the model order or the degree of a polynomial function $f_\theta(x_i)$.
-
-
-A good thing to remember when we work in ML or DL is to try what other people used before and it worked for them, we do not fully understand a lot of things in DL and ML, one of them is how to set a hyperparameter, a good rule of thumb is to first try what people tried before, then adjust. 
 ##### Hyperparameter Optimization Process
 
-The process of fitting parameters and hyperparameters can be represented as a nested optimization problem, as shown below. Notice that equation $(3.3)$ is similar to equation $(3.1)$, except with an explicit regularization term, $R_{\theta_H}(\theta)$, indicating a dependence on hyperparameters:
+The process of fitting parameters and hyperparameters can be represented as a nested optimization problem. Notice that equation (3.3) is similar to (3.1) but includes an explicit regularization term $R_{\theta_H}(\theta)$ that depends on hyperparameters:
 
-$$ \hat{\theta}_H = \arg \min_{\theta_H} \frac{1}{n_\text{val}} \sum_{i=1}^{n_\text{val}} l_\text{val}(y_{i,\text{val}}, f_{\tilde{\theta},\theta_H}(x_{i,\text{val}})) \tag{3.2} $$
+$$
+\hat{\theta}_H = \arg \min_{\theta_H} \frac{1}{n_{\text{val}}} \sum_{i=1}^{n_{\text{val}}} l_{\text{val}}(y_{i,\text{val}}, f_{\tilde{\theta},\theta_H}(x_{i,\text{val}})) \tag{3.2}
+$$
 
-$$ \tilde{\theta} = \arg \min_\theta \left[ \frac{1}{n} \sum_{i=1}^{n} l_\text{train}(y_i, f_\theta(x_i)) + R_{\theta_H}(\theta) \right] \tag{3.3} $$
-
+$$
+\tilde{\theta} = \arg \min_\theta \left[ \frac{1}{n} \sum_{i=1}^{n} l_{\text{train}}(y_i, f_\theta(x_i)) + R_{\theta_H}(\theta) \right] \tag{3.3}
+$$
 
 #### *Process:*
 
-1. *Initiate the values of hyperparameters* $(\theta_H)$.
-2. Based on the values of hyperparameters $(θ_H)$, *Compute the regularized loss* $R_{\theta_H}(\theta)$ on the training dataset to obtain $\tilde{\theta}$ (from equation $3.3$).
-3. Based on the values of normal parameters $\tilde{\theta}$ and hyperparameters $θ_H$, find the best $\hat{\theta}_H$ on the validation data set using equation ($3.2$)
+1. *Initialize the hyperparameters* $(\theta_H)$.
+2. Using $\theta_H$, compute the regularized loss $R_{\theta_H}(\theta)$ on the training dataset to obtain $\tilde{\theta}$ (via equation (3.3)).
+3. With $\tilde{\theta}$ and $\theta_H$, find the best hyperparameters $\hat{\theta}_H$ on the validation dataset using equation (3.2).
 
- **Data Partitioning for Hyperparameter Tuning**: You can split the original training dataset into training and validation datasets. However, avoid data contamination (e.g., duplicated data points) as the training and validation sets should remain distinct.
+**Data Partitioning for Hyperparameter Tuning:**  
+Split your original training dataset into training and validation sets. Be careful to avoid data contamination—the training and validation sets must remain distinct.
 
-**Figure 3.1** shows the classical division of data into three categories for hyperparameter fitting.
-![[Pasted image 20241031144850.png]]
+**Figure 3.1** shows the classical division of data into three categories for hyperparameter tuning.
 
->[!danger] A different  optimizer for validation. 
->
->Something to notice is that we use a different optimizer to determine the hyperparameters from the normal ones.
->
->For example, in determining the normal parameters we usually use gradient descent, while when determining the normal ones, we use something like brute-force optimization (Grid search). 
->
->*Interestingly, there other techniques like zero-order optimization and Multi-armed bandits or even gradient-based approaches, that sometimes preform way better.* 
->
->A popular library to achieve that is *Sickit-Optimize*. 
+![division-of-data](/images/division-of-data.png)
+
+> [!danger]  
+> **A Different Optimizer for Validation**  
+> Note that we often use a different optimizer for hyperparameters than for normal parameters.  
+> For instance, while gradient descent might be used to optimize the normal parameters, a brute-force method (such as grid search) might be employed for hyperparameter tuning.  
+>  
+> There are also techniques like zero-order optimization, multi-armed bandits, or even gradient-based approaches that sometimes perform much better. A popular library for this is *Scikit-Optimize*.
+
 #### *Complication 4:* 
 
-The optimizer might have ”knobs” (other parameters) associated with it. This might include, for example, the learning rate (or step size) $η$ in gradient descent
+The optimizer itself might have “knobs” (e.g., the learning rate $η$ in gradient descent).
 
-   - **Solution:** Include these in $\theta_H$, or ignore this problem (i.e. pick a value that has worked in the past. This is a reasonable approach in the light of the limit of the experimentation budget).
+- **Solution:** Include these in $\theta_H$, or simply choose a value that has worked in the past—often a reasonable choice given limited experimentation budgets.
 
+> [!info]  
+> **Model Order**  
+> In ML, a common practice to prevent overfitting is to reduce the model order or complexity. Examples include reducing the degree of polynomial features in regression, choosing a smaller $K$ in $K$-NN, or limiting the depth of a decision tree.  
+>  
+> In DL, the model order is reflected in the width and depth of neural networks. Despite their high capacity, deep nets often do not overfit as badly as expected—possibly due to regularization techniques, implicit regularization, large datasets, or early stopping.  
+>  
+> Thus, while model order is a hyperparameter, its optimization may be less of a concern in deep learning compared to traditional ML.
 
->[!info] Model Order. 
->
->It's worth noting that a common practice in ML to prevent overfitting is to decrease the model order or complexity , An example of this is the order of polynomial features in regression, the number $K$ in $K-NN$, The depth of a decision tree and so forth. 
->
->The model order can be treated as a Hyperparameter and optimized, the same way we optimize other hyperparameters. 
->
->In DL, we do have a model order too, manifested in the width and depth of our neural nets. 
->
->The model order is often orders of magnitude more  than traditional ML models. 
->
->They are inherently *High capacity*, which would make us expect it to automatically overfit, but that's not the case. We do not fully understand why as of now (Some explanations are the use of regularization techniques, implicit regularization,  large datasets that tame the overfitting, early stopping). But empirically, it does not overfit.  This is why we are not as concerned of the model order and why we have very deep neural nets. 
- 
+---
 
-# References
-[[@Lecture2ERM]]
-[Blog post on Surrogate loss](https://fa.bianp.net/blog/2014/surrogate-loss-functions-in-machine-learning/#fnref:1)
+Feel free to adjust the image paths or any styling details as needed. This MDX content should render nicely using your custom MDX components configuration.

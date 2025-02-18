@@ -21,5 +21,8 @@ const withMDX = createMDX({
   }
 })
 
+
+
+
 // Apply MDX configuration
 export default withMDX(nextConfig)

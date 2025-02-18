@@ -13,6 +13,7 @@ import rehypeKatex from "rehype-katex"
 import rehypePrism from "rehype-prism-plus"
 import styles from "../../_components/BlogHeader.module.css"
 
+
 interface BlogMetadata {
   title: string
   date: string
@@ -59,14 +60,12 @@ export async function generateMetadata({ params }: BlogPostProps) {
 }
 
 export default async function BlogPost({ params }: BlogPostProps) {
-  // Read MDX content
   const filePath = path.join(
     process.cwd(),
     `src/app/blog/posts/Basic-ML-Doctrine/content.mdx`
   )
   const source = await readFile(filePath, "utf8")
 
-  // Compile MDX with proper remark/rehype plugins
   const { content } = await compileMDX({
     source,
     components: mdxComponents,
@@ -79,26 +78,22 @@ export default async function BlogPost({ params }: BlogPostProps) {
     },
   })
 
-  // You might want to parse frontmatter here
   const metadata: BlogMetadata = {
     title: "Basic ML Doctrine: deep, yet intuitive",
     date: "January 20, 2025",
     readingTime: "15 min read",
-    // Add other metadata from frontmatter
   }
 
   return (
-    <BaseContainer>
-      <div className="container max-w-4xl mx-auto px-4 py-8">
+      <div className="px-12">
         <StackVertical gap="md">
-          {/* Header Section */}
           <header className="mb-12">
-            <TextHeading as="h1" className={styles.header}>
+            <TextHeading as="h1" className={`${styles.header} text-4xl font-bold`}>
               {metadata.title}
             </TextHeading>
             <div className="flex items-center justify-between mt-4">
               <div className="space-y-2">
-                <Text variant="muted" size="xs">
+                <Text variant="muted" size="xs" className="text-gray-600 dark:text-gray-400">
                   {metadata.date} | {metadata.readingTime}
                 </Text>
                 {metadata.tags && (
@@ -116,20 +111,18 @@ export default async function BlogPost({ params }: BlogPostProps) {
               </div>
             </div>
           </header>
+          <article className="prose dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-purple-600">
+            {content}
+          </article>
 
-          {/* Main Content */}
-          <article className=" max-w-none">{content}</article>
-
-          {/* Footer Section */}
           {metadata.author && (
             <footer className="mt-12 pt-6 border-t border-gray-200 dark:border-gray-800">
-              <Text variant="muted" size="sm">
+              <Text variant="muted" size="sm" className="text-gray-600 dark:text-gray-400">
                 Written by {metadata.author}
               </Text>
             </footer>
           )}
         </StackVertical>
       </div>
-    </BaseContainer>
   )
 }
