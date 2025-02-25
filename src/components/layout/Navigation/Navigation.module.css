@@ -22,6 +22,7 @@
   text-decoration: none;
   padding: 0;
   transition: opacity 0.2s ease;
+  font-weight: bold;
 }
 
 .link:hover {

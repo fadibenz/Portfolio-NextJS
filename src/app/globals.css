@@ -316,6 +316,10 @@ code {
   font-family: "ITC cushing std"
 }
 
+h3 {
+  font-weight: bold;
+}
+
 .DO_ME {
   color: #dd3418;
 }
