@@ -1,0 +1,87 @@
+.notFound {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #F7F6F2;
+  padding: 2rem;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.contentContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 600px;
+  text-align: center;
+}
+
+.title {
+  font-family: "ITC cushing std";
+  font-size: 6rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  font-family: "ITC cushing std";
+  font-style: italic;
+  font-size: 2.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.message {
+  font-size: 1.2rem;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  color: var(--clr-primary-2, #424242);
+}
+
+.firstLetter {
+  font-size: 2rem;
+  font-family: "ITC cushing std";
+}
+
+.dash {
+  display: block;
+  border: dashed var(--clr-primary-3, #838383) 1px;
+  margin: 0.5em auto;
+  width: 80%;
+}
+
+.homeLink {
+  margin-top: 1.5rem;
+  position: relative;
+  display: inline-block;
+}
+
+.linkText {
+  color: #dd3418;
+  display: inline;
+  background-image: linear-gradient(transparent, transparent),
+    linear-gradient(#dd3418, #dd3418);
+  background-size: 100% 2px, 0 2px;
+  background-position: 100% 100%, 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 250ms ease;
+}
+
+.linkText:hover {
+  background-size: 0 2px, 100% 2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 700px) {
+  .title {
+    font-size: 4rem;
+  }
+
+  .subtitle {
+    font-size: 2rem;
+  }
+
+  .message {
+    font-size: 1.1rem;
+  }
+}
