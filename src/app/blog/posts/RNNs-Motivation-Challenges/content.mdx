@@ -1,3 +1,4 @@
+## RNNs as infinite impulse response filters:
 
 In ConvNets we had filters defined by finite convolutions ($3 \times 3$).
 + *SP-analogy:* $FIR$ filters (Finite impulse response filters). *intellectual arbitrage*.
@@ -41,6 +42,8 @@ Now, to design our network, the components we would need are:
 
 As always, let's first try to design and understand a linear version of $IIR$ filters and then try to generalize a non-linear case.
 
+### Kalman Filter Analogy:
+
 A common linear example is a Kalman filter, it is particularly relevant since it works as a square-loss minimizer, think, linear regression in a recurrent fashion.
 
 
@@ -73,6 +76,9 @@ Let's try to intuitively discuss what do those two equations really say:
 + At each time step we have a new input or measurement that we incorporate in our hidden state.
 + This measurement can itself be approximated using the hidden state.
 + There's a two-way street, we can learn new inputs or measurements from the accumulated hidden state, and we learn new hidden states from the past state and measurement.
+
+
+### Learning Paradigm:
 
 There are mainly two learning paradigms we can imagine:
 
@@ -122,7 +128,8 @@ There are mainly two ways to do so:
    ![](/images/Blog/RNN-Challenges/RNN-Layers.png)
 
 We usually use both options to allow for as much expressiveness as needed.
-##### RNN challenges:
+
+### RNN challenges:
 
 The previously defined architecture faces the same challenges we face when using layers of $CNN$ mainly those of *dying gradients* and *exploding gradients*, due to the deep nature of this network.
 
@@ -153,6 +160,8 @@ What's elegant about this perspective is that it shows how the same solution (ke
 
 >$TL;DR: $
 >the activations affect gradients, which affect weight updates, which then affect future activations. *I can't believe we got RNNs to work.*
+
+### Solutions:
 
 We will now explain some solutions to these challenges and how those solutions enforce necessary inductive biases.
 ##### To deal with exploding gradients:
