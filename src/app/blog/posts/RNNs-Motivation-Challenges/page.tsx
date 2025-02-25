@@ -22,18 +22,13 @@ interface BlogMetadata {
   author?: string
 }
 
-interface BlogPostProps {
-  params: {
-    slug: string
-  }
-}
 
 export async function generateStaticParams() {
   // Add your logic to get all blog slugs
   return [{ slug: "basic-ml-doctrine" }]
 }
 
-export async function generateMetadata({ params }: BlogPostProps) {
+export async function generateMetadata({ params }) {
   const { slug } = params
   // Add your logic to get blog metadata
   const metadata: BlogMetadata = {
