@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: any) {
   }
 }
 
-export default async function BlogPost({ params }: BlogPostProps) {
+export default async function BlogPost({ params }: any) {
   const filePath = path.join(
     process.cwd(),
     `src/app/blog/posts/RNNs-Motivation-Challenges/content.mdx`
