@@ -28,7 +28,7 @@ export async function generateStaticParams() {
   return [{ slug: "basic-ml-doctrine" }]
 }
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata({ params }: any) {
   const { slug } = params
   // Add your logic to get blog metadata
   const metadata: BlogMetadata = {
