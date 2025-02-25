@@ -37,10 +37,10 @@ export async function generateMetadata({ params }: BlogPostProps) {
   const { slug } = params
   // Add your logic to get blog metadata
   const metadata: BlogMetadata = {
-    title: "Basic ML Doctrine: deep, yet intuitive",
-    date: "January 20, 2025",
+    title: "RNNs motivation and challenges",
+    date: "February 25, 2025",
     readingTime: "15 min read",
-    description: "A deep dive into the fundamental principles of Machine Learning",
+    description: "A different perspective to Recurrent Neural Networks",
     // Add other metadata
   }
 
@@ -61,7 +61,7 @@ export async function generateMetadata({ params }: BlogPostProps) {
 export default async function BlogPost({ params }: BlogPostProps) {
   const filePath = path.join(
     process.cwd(),
-    `src/app/blog/posts/Basic-ML-Doctrine/content.mdx`
+    `src/app/blog/posts/RNNs-Motivation-Challenges/content.mdx`
   )
   const source = await readFile(filePath, "utf8")
 
@@ -78,8 +78,8 @@ export default async function BlogPost({ params }: BlogPostProps) {
   })
 
   const metadata: BlogMetadata = {
-    title: "Basic ML Doctrine: deep, yet intuitive",
-    date: "January 20, 2025",
+    title: "RNNs motivation and challenges",
+    date: "February 25, 2025",
     readingTime: "15 min read",
     tags: ["Machine Learning", "AI", "Data Science"],
   }

@@ -2,90 +2,103 @@
 In ConvNets we had filters defined by finite convolutions ($3 \times 3$).
 + *SP-analogy:* $FIR$ filters (Finite impulse response filters). *intellectual arbitrage*.
 
-Can we have an architecture that implements $IIR$ filters (infinite impulse response) ?
+Can we have an architecture that implements $IIR$ filters (infinite impulse response)?
 + Meaning, a net that learns a filter defined by an infinitely long convolution.
 
-What is a compact way to write these infinitely long operations ? We can think of an *exponentially moving average*, that makes use of a hidden state, to keep track of previous operations, we already discussed something similar in momentum.
+What is a compact way to write these infinitely long operations? We can think of an *exponentially moving average*, that makes use of a hidden state, to keep track of previous operations, we already discussed something similar in momentum.
 
 The recurrence relationship is given by:
-$$y[t] = a ∗ y[t − 1] + b ∗ x[t] \ \  \dots \ (1)$$
-we have both $x[t]$ and $y[t$] are current state, while $y[t − 1]$ is for past state.
 
->A special case of the general $IIR$ formulation is that of momentum:$$y[t] = αy[t-1] + (1-α)x[t]$$ The decay factor α determines how much historical information is retained
+$$
+y[t] = a ∗ y[t − 1] + b ∗ x[t] \ \  \dots \ (1)
+$$
+
+we have both $x[t]$ and $y[t$] are current state, while $y[t − 1] $ is for past state.
+
+>A special case of the general $IIR$ formulation is that of momentum:
+>$$
+>y[t] = αy[t-1] + (1-α)x[t]
+>$$
+>The decay factor α determines how much historical information is retained
 > This gives us intuition about the "memory" capacity of our network
 
 
-We can see that we are processing inputs sequentially,  When there are inputs needed to be processed sequentially, $IIR$ can be useful.
+We can see that we’re processing inputs sequentially, When there are inputs needed to be processed sequentially, $IIR$ can be useful.
 
-So the Neural Network we are trying to design, would be suitable for data that comes in *sequences*.
+So the Neural Network we are trying to design would be suitable for data that comes in *sequences*.
 
 We can write $Eq.1$ in a vectorized format:
-$$\vec{y_t} = A\vec{y}_{t−1} + B{\vec{x}_t}$$
+$$
+\vec{y_t} = A\vec{y}_{t−1} + B{\vec{x}_t}
+$$
 > The key idea is that the current state depends on the past state, and it is like momentum.
 
-Now to design our network, the components we would need are:
+Now, to design our network, the components we would need are:
 1. The $IIR$ filter-like operations.
 2. A layer-like architecture.
 3. Non-linearities.
 4. Regularization techniques to deal with potential learning challenges and to impose more inductive bias.
 
-As always, let's first try to design and understand a linear version of $IIR$ filters and then try to generalize to non-linear case.
+As always, let's first try to design and understand a linear version of $IIR$ filters and then try to generalize a non-linear case.
 
-A common linear example is a Kalman filter, it is particularly relevant since it works as a square-loss minimizer, think linear regression in a recurrent fashion.
+A common linear example is a Kalman filter, it is particularly relevant since it works as a square-loss minimizer, think, linear regression in a recurrent fashion.
 
 
 The equations for a Kalman filter can be expressed as:
-$$\begin{align}
-\vec{x_t} &= c\vec{h}_{t|t} + \vec{v_t} \\
-\vec{h}_{t+1|t+1} &= A\vec{h}_{t|t} + B\vec{x}_{t}
-\end{align}$$
 
-> This is a compact way to write the Kalman filter, this is different from the textbook definition that usually works in a predict and then update fashion.
+$$
+\vec{x_t} = c\vec{h}_{t|t} + \vec{v_t}
+$$
+
+$$
+\vec{h}_{t+1|t+1} = A\vec{h}_{t|t} + B\vec{x}_{t}
+$$
+
+> This is a compact way to write the Kalman filter, this is different from the textbook definition that usually works in predict and then update fashion.
 
 In the previous equations:
 + $\vec{x}_t$ is the measurements at step $t$.
 + $\vec{v}_t$ is the measurement Gaussian noise.
 + $\vec{h}_{t|t}$ is the hidden state (weighted average) at step $t$ incorporating information up to step $t$.
-+ We also have that,  $\vec{h}_{t+1|t} = A\vec{h}_{t|t}$ this is the update phase (*prior belief*), we assumed that the noise is dominated by the update.
++ We also have that, $\vec{h}_{t+1|t} = A\vec{h}_{t|t}$ this is the update phase (*prior belief*), we assumed that the update dominates the noise.
 + The matrix $B$ incorporates many common matrices used in the standard Kalman filter definition.
 
-The reason we opted for this formulation is because in the standard (non-learnable) formulation, we know what each matrix represents and they are usually known depending on the *dynamics* of the physical system we are trying to model (Mainly known probability matrices).
+The reason we opted for this formulation is that in the standard (non-learnable) formulation, we know what each matrix represents. They are usually known depending on the *dynamics* of the physical system we are trying to model (Mainly known probability matrices).
 
-Here, since we are learning these parameters (Through Gradient Descent), we can combine those matrices, as it's technically the same thing if we learn them separately.
+Here, since we’re learning these parameters (Through Gradient Descent), we can combine those matrices, as it's technically the same thing if we learn them separately.
 
-> A thought provoking concept to look at, is the relationship between the gaussian noise we are supposing, the fact that we are trying to minimize variance, the squared loss that the minimization induces and how that can be derived with MLE (Same as in OLS).
-
-Let's try to intuitively discuss what does those two equations really say:
+Let's try to intuitively discuss what do those two equations really say:
 
 + We have a hidden, internal state that gets updated at each time step, it's learned from the previous state and the input or measurement at time $t$. It kind of incorporates a long context over all past inputs (A weighted average).
 + At each time step we have a new input or measurement that we incorporate in our hidden state.
 + This measurement can itself be approximated using the hidden state.
-+ There's a two way street, we can learn new inputs or measurements from the accumulated hidden state and we learn new hidden states from the past state and measurement.
++ There's a two-way street, we can learn new inputs or measurements from the accumulated hidden state, and we learn new hidden states from the past state and measurement.
 
 There are mainly two learning paradigms we can imagine:
 
-1.  We have traces of train data  $(\vec{h_{t,j}}, \vec{x}_{t,j}  )^{n_j}_{j=0}$  for the $js$ being $1, 2, . . . , m$. Notice that $n_j$ is  the length and we would want to learn the weights $A$ and $B$.
+1.  We have traces of train data $(\vec{h_{t,j}}, \vec{x}_{t,j})^{n_j}_{j=0}$ for the $js$ being $1, 2, \dots, m$. Notice that $n_j$ is the length, and we would want to learn the weights $A$ and $B$.
 	- *Advantages:* More stable training, faster convergence
-	- *Challenges:* Requires labelled hidden states, may not be available in practice
-	- *Applications:* System identification, physical system modelling
+	- *Challenges:* Requires labeled hidden states, may not be available in practice
+	- *Applications:* System identification, physical system modeling
 
 2.  We only have access to $(\vec{x}_{t,j})^{n_j}_{j=0}$, and we would want to learn the weights $A$, $B$ and $c$.
 	- *Advantages:* More general, requires less supervision
 	- *Challenges:* More difficult to train, may learn suboptimal representations
-	- *Applications:* Sequence prediction, language modelling
+	- *Applications:* Sequence prediction, language modeling
 
 
 For the first case, the network can look like this:
 
-![[Pasted image 20250220125912.png]]
+![](/images/Blog/RNN-Challenges/Simple-RNN.png)
+
 
 We input $x$ from the bottom and input initial hidden state $\vec{0}$, the above are loss layer to calculate loss function and do gradient descent, the loss function would be squared error.
 
 Notice that we are doing *weight sharing* between the layers (We will revisit the concept of layers later on), we know $A, B$ matrices are constant across time.
 
-In real systems, we can directly find a closed-form solution, here we are learning the weights. This is similar to $OLS$ where we can use the closed-form solution or learn with $GD$.
+In real systems, we can directly find a closed-form solution, here we’re learning the weights. This is similar to $OLS$ where we can use the closed-form solution or learn with $GD$.
 
-> What would happen if we initialize the weights to the closed form solution or the known weights ?
+> What would happen if we initialize the weights to the closed form solution or the known weights?
 
 For the second case (*we will revisit it later on*), we wouldn't compare the hidden states directly to any target because they’re latent variables. Instead, we use a readout (or decoder) function that maps the hidden state back to the measurement space. The loss function then compares the predicted measurement to the actual measurement.
 
@@ -97,39 +110,40 @@ The connection to $RNNs$ becomes clearer when we observe that:
 3. The update equation (second equation) parallels $RNN$ state transition.
 4. Matrices $A$, $B$, and $c$ are learnable parameters, unlike traditional Kalman filters where they're fixed by system dynamics
 
-![[Pasted image 20250220134810.png]]
+![](/images/Blog/RNN-Challenges/Simple-RNN-Input-X.png)
 
 We can now extend this network to have more expressiveness and capture more complicated patterns.
 
 There are mainly two ways to do so:
 1. We change the internal structure of each weight box in the $RNN$ by replacing the current linear combinations with an $MLP$. The network inside can be arbitrarily wide and/or deep.
-   ![[Pasted image 20250220135621.png]]
+   ![](/images/Blog/RNN-Challenges/MLP-RNN.png)
+
 2. We use layers of simpler $RNNs$. Treat each $RNN$ as a filter, we compose filters together. It is the same way that convolution network gets deeper. We can put an output layer above, and the inputs are on the ground. The gradient could flow in two directions.
-   ![[Pasted image 20250220135843.png]]
+   ![](/images/Blog/RNN-Challenges/RNN-Layers.png)
 
 We usually use both options to allow for as much expressiveness as needed.
 ##### RNN challenges:
 
-The previously defined architecture, faces the same challenges we face when using layers of $CNN$ mainly those of *dying gradients* and *exploding gradients*, due to the deep nature of this network.
+The previously defined architecture faces the same challenges we face when using layers of $CNN$ mainly those of *dying gradients* and *exploding gradients*, due to the deep nature of this network.
 
-There are several regularization techniques to deal with these challenges. But there's a subtle yet very important distinction we need to make, an explanation of the delicacy of $RNNs$ that goes beyond the argument *'They are just deep'*.
+There are several regularization techniques to deal with these challenges. But there's a subtle yet crucial distinction we need to make, an explanation of the delicacy of $RNNs$ that goes beyond the argument *'They are just deep'*.
 
 In the case of $RNNs$ we have two dynamical systems we need to make sure are stable.
 
-The first one is that of the optimization dynamics. The gradient descent updates are a dynamical system, we have analysed the convergence  of such system (Through linearization) in [[Gradient Descent Problems; Badly Conditioned Curvature.]] We know how to condition the optimization landscape and how to carefully tune the learning rate to allow for proper convergence.
+The first one is that of the optimization dynamics. The gradient descent updates are a dynamical system, we’ve analyzed the convergence of such a system (Through linearization). We know how to condition the optimization landscape and how to carefully tune the learning rate to allow for proper convergence.
 
 Another challenge that is inherent to $RNNs$, is the fact that we are using a recurrent relationship in the information propagation, the shared weights and the recurrent relationship create another dynamical system that we would need to keep stable we can again analyse the linear case (Kalman filter), look at the previous equation:
 $$\vec{h}_{t+1|t+1} = A\vec{h}_{t|t} + B\vec{x}_{t}$$
 The eigenvalues of the matrix $A$ govern the stability of our information propagation system, the stability of these activations, itself  plays a role in the stability of the first system, if this one diverges, the gradient descent dynamical system diverges too.
 
-You can see how there's a deep interplay, that makes dealing with $RNNs$ challenging and needs special delicacy to allow for proper learning.
+You can see how there's a deep interplay that makes dealing with $RNNs$ challenging and needs special delicacy to allow for proper learning.
 
-When we view an $RNN$ as a dynamical system, we're essentially looking at how information evolves over time through repeated application of the same transformation. The key insight is that we want this system to be stable - meaning we don't want the hidden state values to grow unboundedly or chaotically over time sequences.
+When we view an $RNN$ as a dynamical system, we're essentially looking at how information evolves over time through repeated application of the same transformation. The key insight is that we want this system to be stable—meaning we don't want the hidden state values to grow unboundedly or chaotically over time sequences.
 
 This stability requirement exists independently of gradient considerations:
 
-- If hidden states explode, we lose meaningful information representation
-- If they vanish, we lose the ability to maintain long-term dependencies
+- If hidden states explode, we lose meaningful information representation.
+- If they vanish, we lose the ability to maintain long-term dependencies.
 - Values less than one help ensure the system converges to meaningful attractors rather than diverging
 
 What's elegant about this perspective is that it shows how the same solution (keeping values bounded) addresses two different but related problems:
@@ -137,7 +151,7 @@ What's elegant about this perspective is that it shows how the same solution (ke
 2. *Gradient stability (backpropagation view)*
 
 
->[!tldr]
+>$TL;DR: $
 >the activations affect gradients, which affect weight updates, which then affect future activations. *I can't believe we got RNNs to work.*
 
 We will now explain some solutions to these challenges and how those solutions enforce necessary inductive biases.
@@ -145,29 +159,29 @@ We will now explain some solutions to these challenges and how those solutions e
 
 *Solution 1:* We use saturating non-linearities.
 
-![[Pasted image 20250220145454.png]]
+![](/images/Blog/RNN-Challenges/Saturating.png)
 
 These non-linearities will allow the output values of the activation function to have values lesser than one. An attentive reader might ask why we didn't have the same problem in other architectures where we used ReLUs, the answer is subtle yet very important.
 
-A possible explanation is that since $RNNs$ are recurrent, the gradient would involve a lot of multiplication. Therefore, in order to prevent the gradient from exploding, we want to make sure the output value of the activation function would be smaller than one, since the the gradient magnitudes are directly affected by those of the activations.
+A possible explanation is that since $RNNs$ are recurrent, the gradient would involve a lot of multiplications. Therefore, to prevent the gradient from exploding, we want to make sure the output value of the activation function would be smaller than one, since the the gradient magnitudes are directly affected by those of the activations.
 
 Another perspective is that in $RNNs$, the information propagation in the forward pass is a dynamical system itself that we would need to stabilize, this is a problem specific to $RNNs$ since they are recurrent.
 
-A fun, and philosophical way to look at this is that physical things in the real world, modelled as dynamics (linear or non-linear) can not run off to infinity, some kind of non-linearity will kick in and stop them, so an original belief in designing $RNNs$ which are essentially a dynamical system, odds are it shouldn't run to infinity either, so we add saturating non-linearities.
+A fun and philosophical way to look at this is that physical things in the real world, modelled as dynamics (linear or non-linear) can not run off to infinity, some kind of non-linearity will kick in and stop them, so an original belief in designing $RNNs$ which are essentially a dynamical system, odds are it shouldn't run to infinity either, so we add saturating non-linearities.
 
 *Solution 2:* We use Normalization.
 
 We can either use:
-+ *Layer Normalization:* We can apply layer normalization in two ways in the context of $RNN$: either we normalize the $hs$ above, or, we can do the layer norm in the $x$ direction. We can also put layer norm inside $w_is$ ($MLP$), layer normalization makes sense in this context since we are just cantering and sphering the hidden states separately, there's no weird apples and oranges averaging in this case .
-	+ If we apply the normalization between the layers (Horizontally), across all of the sequence, in training time it can easily work, since we have all of our sequences coming in. Now at test time, if we have all of our sequence coming in at the same time, then no problem. But if the sequence inputs come one at a time, we need some reparameterization to account for the statistics, so LayerNorm works, but it's application specific.
++ *Layer Normalization:* We can apply layer normalization in two ways in the context of $RNN$: either we normalize the $hs$ above, or we can do the layer norm in the $x$ direction. We can also put layer norm inside $w_is$ ($MLP$), layer normalization makes sense in this context since we’re just cantering and sphering the hidden states separately, there are no weird apples and oranges averaging in this case.
+	+ If we apply the normalization between the layers (Horizontally), across all the sequences, in training time it can easily work, since we have all of our sequences coming in. Now at test time, if we have all of our sequence coming in at the same time, then no problem. But if the sequence inputs come one at a time, we need some re-parameterization to account for the statistics, so LayerNorm works, but it's application-specific.
 	+ If we put a 'mini' normalization horizontally, we don't have the same problem.
-	+ We should also add learnable parameters and we need our data to be high dimensional enough so the distortion is not very significant.
-+ *Batch Normalization:* we do not usually use Batch Normalization is because it would not consider the recurrent part of th e network, as in each recurrence calculation the statistics about the data would change. If you want to explore further, you can check [paper](https://arxiv.org/abs/1603.09025) and see how we do reparameterization to get Batch Normalization to work.
+	+ We should also add learnable parameters, and we need our data to be high dimensional enough so the distortion is not very significant.
++ *Batch Normalization:* we do not usually use Batch Normalization is because it would not consider the recurrent part of the network, as in each recurrence calculation, the statistics about the data would change. If you want to explore further, you can check [paper](https://arxiv.org/abs/1603.09025) and see how we do re-parameterization to get Batch Normalization to work.
 
 ##### To deal with dying gradients:
 
 *Solution:* Use skip connections to allow for a baseline to the gradient updates.
-![[Pasted image 20250220155045.png]]
+![](/images/Blog/RNN-Challenges/Skip-connections.png)
 
 We have two options to add the skip connections:
 
@@ -179,18 +193,18 @@ We get the vertical skip connection could work, they are added across layers so 
 The reason is adding skip connections horizontally, will change the inductive bias of our network.
 
 + Our network learns from both local inputs and the accumulated context, each $MLP$ learns how to weight each contribution.
-+ When we add skip connections, we are feeding unweighted context to the next output.
++ When we add skip connections, we’re feeding unweighted context to the next output.
 + This will weaken the effect of local input in our network.
-+ The context can shift suddenly and the accumulated context might not be as relevant anymore, with a direct skip connection, we are enforcing the irrelevant context.
++ The context can shift suddenly, and the accumulated context might not be as relevant anymore, with a direct skip connection, we’re enforcing the irrelevant context.
 
-So we have two conflicting wishes, we want to solve the problem of dying gradients while allowing our network to learn local patterns and deal with context shifts. How can we achieve that ?  a natural solution in $DL$ when we have conflicting wishes, is to let our network decide !
+So we have two conflicting wishes, we want to solve the problem of dying gradients while allowing our network to learn local patterns and deal with context shifts. How can we achieve that ? a natural solution in $DL$ when we have conflicting wishes, is to let our network decide!
 
 > Aside:
 > In ConvNets, the problem is less prominent because we treat the full image at once. Although we can face the same problem when we deal with problems at the pixel level, hence the motivation for U-Net).
 >
-> More importantly in images, the context does not change abruptly, as much as in data used in RNNs, mainly linguistic data.
+> More importantly in images, the context doesn’t change abruptly, as much as in data used in RNNs, mainly linguistic data.
 
-A naïve solution is to add weights to the skip connections but this doesn't work in practice.
+A naïve solution is to add weight to the skip connections, but this doesn't work in practice.
 
 Instead of a naïve fixed-weight skip connection, introducing a mechanism (like a gating function) enables the network to dynamically decide:
 - How much of the past context to carry forward?

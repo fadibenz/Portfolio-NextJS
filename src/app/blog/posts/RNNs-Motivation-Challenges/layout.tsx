@@ -1,18 +1,13 @@
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-    title: 'Basic ML Doctrine',
-    description: 'A deep, yet intuitive understanding of the basic principles of Machine Learning',
+    title: 'RNNs motivation and challenges',
+    description: 'A different perspective to Recurrent Neural Networks',
     openGraph: {
-        title: 'Basic ML Doctrine ',
-        description: '- A deep, yet intuitive understanding of the basic principles of Machine Learning',
+        title: 'RNNs motivation and challenges',
+        description: 'A different perspective to Recurrent Neural Networks',
         type: 'article',
-        publishedTime: '2025-01-20T20:37:00.000Z',
-    },
-    twitter: {
-        card: 'summary_large_image',
-        title: 'Basic ML Doctrine',
-        description: 'A deep, yet intuitive understanding of the basic principles of Machine Learning',
+        publishedTime: '2025-02-25',
     }
 }
 
