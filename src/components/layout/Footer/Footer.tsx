@@ -16,7 +16,7 @@ export function Footer() {
               <span className='DO_ME underlinee'>benzaimafadi@gmail.com</span></a> or 
               <a href='https://twitter.com/FadiBenzx'>
               <span className='DO_ME underlinee'>Twitter</span></a>
-           \ if you have any questions or just want to talk.</p>
+            if you have any questions or just want to talk.</p>
         </article>
       </section>
       <section className={styles.Footer_secondary}>
