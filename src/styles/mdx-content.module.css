@@ -1,0 +1,84 @@
+/* src/styles/mdx-content.module.css */
+.mdxContent h1 {
+  font-size: 2.5rem;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-weight: bold;
+}
+
+.mdxContent h2 {
+  font-size: 2rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: bold;
+}
+
+.mdxContent h3 {
+  font-size: 1.75rem;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.mdxContent p {
+  color: black !important;
+  margin-bottom: 1rem;
+  line-height: 1.6;
+
+}
+
+.mdxContent img {
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  max-width: 100%;
+  border-radius: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+.mdxContent code {
+  font-family: 'Gräbenbach', monospace;
+  background-color: rgba(124, 58, 237, 0.1);
+  color: rgb(124, 58, 237);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+}
+
+.mdxContent pre {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+
+.mdxContent blockquote {
+  border-left: 3px solid #dd3418;
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  font-style: italic;
+  color: rgba(107, 114, 128, 0.8);
+}
+
+.mdxContent a {
+  color: #dd3418;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.mdxContent a:hover {
+  color: #dd3418;
+}
+
+
+/* Ensure math display has proper spacing */
+.mdxContent .katex-display {
+  margin: 1.5rem 0;
+}
+
+.mdxContent blockquote::before,
+.mdxContent blockquote::after {
+  content: none;
+}
+
+.mdxContent blockquote p::before,
+.mdxContent blockquote p::after {
+  content: none;
+}

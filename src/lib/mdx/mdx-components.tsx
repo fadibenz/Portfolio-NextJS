@@ -13,25 +13,7 @@ import Image from "next/image"
 import "katex/dist/katex.min.css"
 import katex from "katex"
 
-// ----------------------------------------------------------------------
-// Custom Math Component
-// ----------------------------------------------------------------------
-
-function MdxImage(props: React.ImgHTMLAttributes<HTMLImageElement>) {
-  return (
-    <img
-      {...props}
-      className="max-w-5"
-      style={{
-        filter: "none",  // force no grayscale
-        ...props.style,
-      }}
-    />
-  )
-}
-
-
-
+// MathDisplay component for rendering math expressions
 const MathDisplay = ({
     math,
     display = false,
@@ -49,7 +31,7 @@ const MathDisplay = ({
                 katex.render(math, mathRef.current, {
                     displayMode: display,
                     throwOnError: false,
-                    strict: false, // More forgiving parsing
+                    strict: false,
                 })
             } catch (error) {
                 console.error("KaTeX parsing error:", error)
@@ -60,9 +42,22 @@ const MathDisplay = ({
     return <span ref={mathRef} />
 }
 
-// ----------------------------------------------------------------------
-// Custom Admonition Component
-// ----------------------------------------------------------------------
+// Custom Image component that overrides the default grayscale filter
+function MdxImage(props: React.ImgHTMLAttributes<HTMLImageElement>) {
+  return (
+    <img
+      {...props}
+      className={cn("max-w-full", props.className)}
+      style={{
+        filter: "none",  // Override the global grayscale filter
+        mixBlendMode: "normal", // Override the global mix-blend-mode
+        ...props.style,
+      }}
+    />
+  )
+}
+
+// Admonition component for callouts
 type AdmonitionType = "info" | "warning" | "danger" | "tip" | "note" | "seealso"
 
 interface AdmonitionProps {
@@ -119,10 +114,10 @@ export const Admonition = ({ type, title, children }: AdmonitionProps) => {
     )
 }
 
-
+// Define MDX components
 export const mdxComponents: MDXComponents = {
     h1: ({ children }) => (
-        <h1  className="mt-8 mb-4 text-4xl DO_ME">
+        <h1 className="mt-8 mb-4 text-4xl">
             {children}
         </h1>
     ),
@@ -167,7 +162,11 @@ export const mdxComponents: MDXComponents = {
         )
     },
 
-    img: ({ src, alt, width, height }) => (
+    // Use the next/image component for images
+    img: MdxImage,
+
+    // Override Next.js Image component integration
+    Image: ({ src, alt, width, height }) => (
         <div className="my-6 relative rounded-lg overflow-hidden">
             <Image
                 src={src || ""}
@@ -176,6 +175,7 @@ export const mdxComponents: MDXComponents = {
                 height={Number(height) || 400}
                 className="rounded-lg"
                 loading="lazy"
+                style={{ filter: "none", mixBlendMode: "normal" }}
             />
             {alt && (
                 <figcaption className="text-sm text-center text-muted-foreground mt-2">
@@ -212,6 +212,7 @@ export const mdxComponents: MDXComponents = {
         const codeString = React.Children.toArray(children).join("")
         const match = /language-(\w+)/.exec(className || "")
         const language = match ? match[1] : ""
+
         if (!language) {
             return (
                 <code
@@ -263,9 +264,7 @@ export const mdxComponents: MDXComponents = {
         </a>
     ),
 
-    // --------------------------------------------------------------------
-    // Custom Admonition Component mapping for MDX usage
-    // --------------------------------------------------------------------
+    // Map the Admonition component for MDX usage
     Admonition: ({ type, title, children }: {
         type: AdmonitionType
         title?: string
