@@ -1,0 +1,114 @@
+## Positional Encoding
+
+The temporal inductive bias is very important when we deal with sequences, $RNNs$ encode such bias in the architecture, but transformers, which are pure attention mechanisms, are *permutation equivariant.*
+
+To take full advantage of the transformer architecture, we need another way to inject this inductive bias.
+
+If we cannot change the architecture to include an inductive bias, we can do so by changing the data!
+
+How can we include the temporal relationship in the data itself, as some form of data augmentation?
+
+We will use a *positional embedding* that we either concatenate or directly add to each input in the sequence.
+
+> **Concatenate or add?**
+>
+> The positional embedding vector will be as large as the original embedding, so settling on concatenation would lead to vectors twice as long, working in very high dimensional spaces as such is undesirable (High computational cost, overfitting), so we settle on adding.
+>
+> This might look counterintuitive at first, but it actually makes perfect sense.
+>
+> We are already working in very high-dimensional spaces. One of the counterintuitive properties of high-dimensional spaces is that if you take any two random vectors they will be nearly orthogonal (They occupy different subspaces ), meaning that the original vector (after adding) can be written as a linear combination of those two orthogonal vectors, the neural network will learn to sperate the embeddings.
+>
+> What if the features and frequencies overlap ? like if we use data that is based on frequencies?
+
+### A fixed, deterministic positional embedding:
+
+The most common way is to use *frequencies*. if we let $t$ be the position in the sequence we want to encode, we can differentiate it from other positions by using a complex expression.
+
+$$
+e^{j\omega t} = \cos \omega t + j \sin \omega t \ \  \text{or}
+
+\begin{bmatrix}
+\cos \omega_1 t \\
+\sin \omega_1 t \\
+\cos \omega_2 t \\
+\vdots \\
+\sin \omega_n t
+\end{bmatrix}
+
+$$
+Where $$w_i = \frac{1}{n^{2i/d}}$$
++ Usually $n = 10000$, but it can be any number.
++ $i$ is the dimension in the $d$-dimensional embedding.
++ $w_i$ can be learnable, but in practice it has not proven beneficial.
+
+In practice, we don't want to use complex numbers, so we use the vector expression.
+
+This is a very elegant way of doing positional embedding, this is due to many factors:
+
+#### **Periodicity:**
+
+Sines and cosines are periodic, they repeat when $t = \frac{2\pi}{w_i} + \tilde{t}$, now since we have different frequencies for each dimension, we will never have the same embedding again, all frequencies will not line up unless we have some astronomically large number of positions which does not happen in practice. This leads to two subtle properties:
+
+1. Because of periodicity, Sines and Cosines are limited to the interval $[-1, 1]$, no matter how big the position is. This way we will not corrupt the input information with large numbers and we confine the activations to a compact space (Avoiding exploding gradients).
+2. Now, since frequencies don't wrap at the same intervals, this allows an easier distinction between coarse and fine degrees of time.
+
+	- **Low-frequency components**, those at later dimensions, change slowly, capturing coarse, global positional information.
+	- **High-frequency components**, those at earlier dimensions, change rapidly, encoding fine, local details of position.
+
+	In our attention mechanism, queries and keys will contain the positional embeddings as the input (since they are mere linear combinations).
+
+	We have explained how in high dimensions, the input and the positional embedding can be written as a linear combination (due to the near orthogonality).
+
+	Then, suppose we want to query for the position only. When we take the inner product, by linearity, we get:
+
+	 $(1)$ the inner product of the position oriented query and the input.
+	                        **added to**
+	 $(2)$ the inner product of the position oriented query and the position encoding.
+
+	If the position encoding has a high correlation with the query, then $(2)$ will be high whereas the position oriented query and the input will be something completely different. Therefore, the inner product has the ability to be able to pick up positions vs things in the input. Of course, there will be some interference with the query but not that much.
+
+	Now let's say our query wants to pick up long-range sequences, it will do so by emphasizing the low-frequency components, since they change slowly and we would still have high similarity scores even for ones further away.
+
+	 If we want nearby positions, we can emphasize the high-frequency components; since they change rapidly, only those very close will have high similarity scores.
+
+	 We have therefore given our network the freedom to query fine or coarse aspects of time.
+
+
+#### **Inherent relative positioning:**
+
+We have mentioned before how the range of frequencies allows our network to distinct between fine and coarse degrees of time but this is only useful if our network when calculating similarities depends on the *difference* between the positional embeddings.
+
+Continuing with the assumption that in high dimensions, we can separate the input from the positional embeddings.
+
+
+Suppose the query is at position $t$ and the key is at position $s$, the expression for the product of positional encodings is:
+
+$$
+PE(t) \cdot PE(s) = \sum_{i=0}^{d/2-1} \left[ \sin \left( \frac{t}{10000^{2i/d}} \right) \sin \left( \frac{s}{10000^{2i/d}} \right) + \cos \left( \frac{t}{10000^{2i/d}} \right) \cos \left( \frac{s}{10000^{2i/d}} \right) \right]
+$$
+
+Using the trigonometric identity:
+$$
+\sin(a) \sin(b) + \cos(a) \cos(b) = \cos(a - b)
+$$
+
+This simplifies to:
+$$
+PE(t) \cdot PE(s) = \sum_{i=0}^{d/2-1} \cos \left(\frac{t - s}{10000^{2i/d}} \right)
+$$
+
+We can clearly see how the *difference* between positions is what matters, this difference is *directly* influenced by the high and low frequencies we mentioned before.
+
+### A learnable positional embedding:
+
+We add a bias term:
+
+$$
+<\vec{q}, \vec{k}_i> + \vec{b_{\vec{i} - \vec{j}}}
+$$
+
+The bias term encodes the relative position between the query and the key, and it's learnable.
+
+It might look like this approach is completely different from the one we described above. However, if you think of the heuristic in which we can sperate the embeddings in high dimensional spaces and we use the $cos/sin$ relative positioning, it boils down to the same thing!
+
+> It's worth mentioning that the first approach gives more expressive power, as it allows the query itself to be position oriented.
