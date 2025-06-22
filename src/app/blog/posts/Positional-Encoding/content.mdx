@@ -1,28 +1,31 @@
-## Positional Encoding
 
 The temporal inductive bias is very important when we deal with sequences, $RNNs$ encode such bias in the architecture, but transformers, which are pure attention mechanisms, are *permutation equivariant.*
 
+This limits expressivity, modelling something like a query that returns the first element of a sequence becomes challenging.
+
 To take full advantage of the transformer architecture, we need another way to inject this inductive bias.
 
-If we cannot change the architecture to include an inductive bias, we can do so by changing the data!
+If we can not change the architecture to include an inductive bias, we can do so by changing the data !
 
-How can we include the temporal relationship in the data itself, as some form of data augmentation?
+How can we include the temporal relationship in the data itself, as some form of data augmentation ?
 
-We will use a *positional embedding* that we either concatenate or directly add to each input in the sequence.
+We will use a *positional embedding* that we either concatenate, directly add, or inject in a different way to each input in the sequence.
 
-> **Concatenate or add?**
+> **Concatenate or add ?**
 >
-> The positional embedding vector will be as large as the original embedding, so settling on concatenation would lead to vectors twice as long, working in very high dimensional spaces as such is undesirable (High computational cost, overfitting), so we settle on adding.
+> The positional embedding vector will be as large as the original embedding so settling on concatenation would lead to vectors twice as long, working in very high dimensional spaces as such is undesirable (High computational cost, overfitting), so we settle on adding.
 >
 > This might look counterintuitive at first, but it actually makes perfect sense.
 >
-> We are already working in very high-dimensional spaces. One of the counterintuitive properties of high-dimensional spaces is that if you take any two random vectors they will be nearly orthogonal (They occupy different subspaces ), meaning that the original vector (after adding) can be written as a linear combination of those two orthogonal vectors, the neural network will learn to sperate the embeddings.
+> We are already working in very high dimensional spaces.
 >
-> What if the features and frequencies overlap ? like if we use data that is based on frequencies?
+> One of the counterintuitive properties of high-dimensional spaces is that if you take any two **random vectors** they will be nearly orthogonal (They occupy different subspaces ), meaning the the original vector (after adding) can be written as a linear combination of those two orthogonal vectors, the neural network will learn to sperate the embeddings.
+>
+> What if the features and frequencies overlap ? like if we use data that is based on frequencies ?
 
-### A fixed, deterministic positional embedding:
+### Sinusoidal Embeddings:
 
-The most common way is to use *frequencies*. if we let $t$ be the position in the sequence we want to encode, we can differentiate it from other positions by using a complex expression.
+The initial approach described in [Viswani et al. 2017] was to use *frequencies*. if we let $t$ be the position in the sequence we want to encode, we can differentiate it from other positions by using a complex expression.
 
 $$
 e^{j\omega t} = \cos \omega t + j \sin \omega t \ \  \text{or}
@@ -41,74 +44,222 @@ Where $$w_i = \frac{1}{n^{2i/d}}$$
 + $i$ is the dimension in the $d$-dimensional embedding.
 + $w_i$ can be learnable, but in practice it has not proven beneficial.
 
-In practice, we don't want to use complex numbers, so we use the vector expression.
+In practice we don't want to use complex numbers, so we use the vector expression.
 
 This is a very elegant way of doing positional embedding, this is due to many factors:
 
-#### **Periodicity:**
+##### *Periodicity:*
 
 Sines and cosines are periodic, they repeat when $t = \frac{2\pi}{w_i} + \tilde{t}$, now since we have different frequencies for each dimension, we will never have the same embedding again, all frequencies will not line up unless we have some astronomically large number of positions which does not happen in practice. This leads to two subtle properties:
 
-1. Because of periodicity, Sines and Cosines are limited to the interval $[-1, 1]$, no matter how big the position is. This way we will not corrupt the input information with large numbers and we confine the activations to a compact space (Avoiding exploding gradients).
-2. Now, since frequencies don't wrap at the same intervals, this allows an easier distinction between coarse and fine degrees of time.
+Because of periodicity, Sines and Cosines are limited to the interval $[-1, 1]$, no matter how big the position is. This way we will not corrupt the input information with large numbers and we confine the activations to a compact space (Avoiding exploding gradients).
 
-	- **Low-frequency components**, those at later dimensions, change slowly, capturing coarse, global positional information.
-	- **High-frequency components**, those at earlier dimensions, change rapidly, encoding fine, local details of position.
+##### *Fine and Coarse time, hands of a clock:*
 
-	In our attention mechanism, queries and keys will contain the positional embeddings as the input (since they are mere linear combinations).
+The core idea of attention is to compute similarity scores between a query $Q$ and a set of keys $K$ to determine how much attention (weight) to pay to the corresponding values $V$. In self-attention within a Transformer, $Q$, $K$, and $V$ are derived from the same input sequence.
 
-	We have explained how in high dimensions, the input and the positional embedding can be written as a linear combination (due to the near orthogonality).
+The input to a Transformer layer (after the initial embedding lookup) for a token at position $t$ is the sum of its content embedding (e.g., word embedding $X_t$) and its positional encoding $PE(t)$:
 
-	Then, suppose we want to query for the position only. When we take the inner product, by linearity, we get:
+$$ Emb_t = X_t + PE(t) \in \mathbb{R}^d $$
 
-	 $(1)$ the inner product of the position oriented query and the input.
-	                        **added to**
-	 $(2)$ the inner product of the position oriented query and the position encoding.
-
-	If the position encoding has a high correlation with the query, then $(2)$ will be high whereas the position oriented query and the input will be something completely different. Therefore, the inner product has the ability to be able to pick up positions vs things in the input. Of course, there will be some interference with the query but not that much.
-
-	Now let's say our query wants to pick up long-range sequences, it will do so by emphasizing the low-frequency components, since they change slowly and we would still have high similarity scores even for ones further away.
-
-	 If we want nearby positions, we can emphasize the high-frequency components; since they change rapidly, only those very close will have high similarity scores.
-
-	 We have therefore given our network the freedom to query fine or coarse aspects of time.
+Where $d$ is the model's embedding dimension.
 
 
-#### **Inherent relative positioning:**
+ $Q$, $K$, and $V$ on the other hand are computed via linear transformations using learned weight matrices $W_Q, W_K, W_V \in \mathbb{R}^{d \times d_k}$ (for $Q$ and $K$) and $W_V \in \mathbb{R}^{d \times d_v}$ (for $V$).
 
-We have mentioned before how the range of frequencies allows our network to distinct between fine and coarse degrees of time but this is only useful if our network when calculating similarities depends on the *difference* between the positional embeddings.
+Note: Often $d_k = d_v = d/h$, where $h$ is the number of attention heads, but here we'll use $d_k$ for generality.
 
-Continuing with the assumption that in high dimensions, we can separate the input from the positional embeddings.
+$$ Q_t = Emb_t W_Q = (X_t + PE(t)) W_Q = X_t W_Q + PE(t) W_Q $$
+$$ K_s = Emb_s W_K = (X_s + PE(s)) W_K = X_s W_K + PE(s) W_K $$
+$$ V_s = Emb_s W_V = (X_s + PE(s)) W_V = X_s W_V + PE(s) W_V $$
+
+Here, $Q_t \in \mathbb{R}^{d_k}$ represents the query from position $t$, and $K_s \in \mathbb{R}^{d_k}$ represents the key from position $s$.
+
+We can now calculate the unnormalized attention score between query position $t$ and key position $s$ as the scaled dot product:
+
+$$ \text{score}(t, s) = \frac{Q_t \cdot K_s}{\sqrt{d_k}} $$
+
+Let's expand the dot product $Q_t \cdot K_s$:
+
+$$ Q_t \cdot K_s = (X_t W_Q + PE(t) W_Q) \cdot (X_s W_K + PE(s) W_K) $$
+
+Using the distributive property of the dot product:
+
+$$ Q_t \cdot K_s = (X_t W_Q \cdot X_s W_K) \quad (\text{Term 1: Content-Content}) $$
+$$ + (X_t W_Q \cdot PE(s) W_K) \quad (\text{Term 2: Content-Position}) $$
+$$ + (PE(t) W_Q \cdot X_s W_K) \quad (\text{Term 3: Position-Content}) $$
+$$ + (PE(t) W_Q \cdot PE(s) W_K) \quad (\text{Term 4: Position-Position}) $$
 
 
-Suppose the query is at position $t$ and the key is at position $s$, the expression for the product of positional encodings is:
+Here,  $Q_t \in \mathbb{R}^{d_k}$  represents the query from position $t$ , and $K_s \in \mathbb{R}^{d_k}$ represents the key from position $s$.
 
-$$
-PE(t) \cdot PE(s) = \sum_{i=0}^{d/2-1} \left[ \sin \left( \frac{t}{10000^{2i/d}} \right) \sin \left( \frac{s}{10000^{2i/d}} \right) + \cos \left( \frac{t}{10000^{2i/d}} \right) \cos \left( \frac{s}{10000^{2i/d}} \right) \right]
-$$
+Let's now analyze each term:
 
-Using the trigonometric identity:
-$$
-\sin(a) \sin(b) + \cos(a) \cos(b) = \cos(a - b)
-$$
+- **Term 1 ($X_t W_Q \cdot X_s W_K$):** This term captures the similarity based purely on the content embeddings ($X_t, X_s$) after being projected by $W_Q$ and $W_K$. This is the standard content-based attention found in many models. The matrices $W_Q$ and $W_K$ will be learned to appropriately capture a specific pattern related to the content of the different tokens.
 
-This simplifies to:
-$$
-PE(t) \cdot PE(s) = \sum_{i=0}^{d/2-1} \cos \left(\frac{t - s}{10000^{2i/d}} \right)
-$$
+- **Term 4 ($PE(t) W_Q \cdot PE(s) W_K$):** This term captures the similarity based purely on the positional embeddings ($PE(t), PE(s)$) after projection. This is where the positional information directly influences the attention score based on the _transformed_ positional vectors. Similarly, the matrices $W_Q$ and $W_K$ will be learned simultaneously to appropriately capture a specific pattern related to the positions of the tokens and here comes more nuance related to how the positional embedding is designed.
 
-We can clearly see how the *difference* between positions is what matters, this difference is *directly* influenced by the high and low frequencies we mentioned before.
+- **Terms 2 & 3 ($X_t W_Q \cdot PE(s) W_K$ and $PE(t) W_Q \cdot X_s W_K$):** These are cross-terms representing the interaction between content and position. For example, Term 2 might allow the query (based on content $X_t$) to seek keys based on their position ($PE(s)$). Term 3 might allow a query focused on position ($PE(t)$) to seek keys based on their content ($X_s$). This enables queries like "What word (content) is at position $s$ relative to my position $t$?" or "Where (position) is the word 'transformer' (content) relative to my position $t$?". These can be negligible if the position and content are still nearly orthogonal after the learned projections.
+
+
+As mentioned above, the projection lead $W_Q, W_K$ determine:
+
+- How much emphasis is placed on the original content ($X$) versus position ($PE$) information.
+- How the different dimensions within $PE$ (corresponding to different frequencies) are weighted and combined.
+- How the content and position information are potentially integrated or separated in the final $Q$ and $K$ vectors. The network learns these matrices during training to optimize the attention mechanism for the specific task (e.g., machine translation, text generation).
+
+The sinusoidal positional encoding vector $PE(t) \in \mathbb{R}^d$ contains components oscillating at different frequencies $\omega_i = \frac{1}{10000^{2i/d}}$.
+
+- **High Frequencies (small $i$):** $\omega_i$ is large. $\sin(\omega_i t)$ and $\cos(\omega_i t)$ change rapidly with $t$. These components encode fine-grained, local positional information. A small change in $t$ leads to a significant change in these components.
+- **Low Frequencies (large $i$):** $\omega_i$ is small. $\sin(\omega_i t)$ and $\cos(\omega_i t)$ change slowly with $t$. These components encode coarse-grained, global positional information. These values remain similar even for moderately large differences in $t$.
+
+The network learns to exploit this multi-frequency representation via the learned weight matrices $W_Q, W_K \in \mathbb{R}^{d \times d_k}$.
+
+Recall $PE(t)' = PE(t) W_Q$.
+
+Each of the $d_k$ dimensions of the output vector $PE(t)'$ is a linear combination (a weighted sum) of all $d$ dimensions of the input vector $PE(t)$.
+
+Let $PE(t)_j'$ be the $j$-th dimension of the transformed vector, and $W_{kj}^Q$ be the weight in the $k$-th row and $j$-th column of $W_Q$.
+
+$$ PE(t)_j' = \sum_{k=1}^{d} PE(t)_k \cdot W_{kj}^Q $$
+
+Suppose the network needs to attend to very nearby positions (fine-grained focus). To achieve this, the dot product $PE(t)' \cdot PE(s)'$ should be large **only when $t \approx s$**. This requires $PE(t)'$ and $PE(s)'$ to be sensitive to small changes in position.
+
+The network can achieve this by learning weights in $W_Q$ and $W_K$ such that certain dimensions of $PE(t)'$ and $PE(s)'$ (say, dimension $j$) heavily weight the _high-frequency_ components (small $i$) of the original $PE(t)$ and $PE(s)$. That is, the values $W_{kj}^Q$ and $W_{kj}^K$ would be large for indices $k$ corresponding to high frequencies, and small for indices $k$ corresponding to low frequencies.
+
+if dimension $j$ in both $PE(t)'$ and $PE(s)'$ primarily reflects high-frequency information, their product $PE(t)_j' \cdot PE(s)_j'$ will contribute significantly to the dot product _only_ when $t$ is very close to $s$.
+
+Conversely, suppose the network needs to attend over longer ranges (coarse-grained focus). It can learn weights in $W_Q$ and $W_K$ that cause other dimensions of $PE(t)'$ and $PE(s)'$ (say, dimension $l$) to heavily weight the _low-frequency_ components (large $i$) of the original $PE(t)$ and $PE(s)$.
+
+If dimension $l$ in both $PE(t)'$ and $PE(s)'$ primarily reflects low-frequency information, their product $PE(t)_l' \cdot PE(s)_l'$ will contribute significantly to the dot product even when $t$ and $s$ are far apart, as low-frequency components change slowly.
+
+
+This isn't explicitly programmed. During training, the model adjusts $W_Q$ and $W_K$ (and all other weights) via gradient descent to minimize the loss function.
+
+If attending locally improves performance on the task, the gradients will push $W_Q, W_K$ to develop projections that emphasize high-frequency $PE$ components.
+
+If attending globally or to specific relative offsets (enabled by lower frequencies) improves performance, the weights will evolve accordingly.
+
+Crucially, Transformers use multi-head attention. Each head has its _own_ set of $W_Q, W_K, W_V$ matrices.
+
+This allows different heads to simultaneously learn different types of positional focus. One head might learn to focus locally (emphasizing high frequencies), while another learns to focus more globally or on specific relative offsets (emphasizing lower frequencies or specific combinations). The outputs of all heads are then combined, giving the model flexibility.
+
+It's also worth noting that composing layers on top of each other adds more to this complexity, allowing to both query content and position.
+
+##### *Relative Positioning:*
+
+The relative positioning property stems from the mathematical structure of the _raw_ sinusoidal $PE$ vectors themselves.
+
+the dot product of the raw $PE$ vectors for positions $t$ and $s$ is:
+
+$$ PE(t) \cdot PE(s) = \sum_{i=0}^{d/2-1} [\sin(\omega_i t) \sin(\omega_i s) + \cos(\omega_i t) \cos(\omega_i s)] $$
+
+Where $\omega_i = \frac{1}{10000^{2i/d}}$. Using the identity $\cos(a - b) = \cos(a)\cos(b) + \sin(a)\sin(b)$:
+
+$$ PE(t) \cdot PE(s) = \sum_{i=0}^{d/2-1} \cos(\omega_i (t - s)) $$
+
+This demonstrates that the dot product of the original, untransformed $PE$ vectors depends only on the relative displacement $(t - s)$, not on the absolute positions $t$ or $s$. This is a powerful property suggesting that similarity between raw $PE$s inherently measures relative distance.
+
+This elegant property applies before the linear transformations $W_Q$ and $W_K$. In the actual attention mechanism, the relevant term involving only position is **Term 4** from the previous section:
+
+$$ \text{Term 4} = (PE(t) W_Q) \cdot (PE(s) W_K) $$
+
+Let $PE(t)' = PE(t) W_Q$ and $PE(s)' = PE(s) W_K$ be the transformed positional components of the query and key. Term 4 is $PE(t)' \cdot PE(s)'$.
+
+**Is Term 4 a function of $(t - s)$?**
+
+Generally, **no**. The matrices $W_Q$ and $W_K$ mix the dimensions of the original $PE$ vectors.
+
+Unless $W_Q$ and $W_K$ possess very specific structures (e.g., being orthogonal matrices that preserve the pairwise sinusoidal structure, or being related such that $(W_Q)^T W_K$ is diagonal with specific values), the simple $\sum \cos(\omega_i (t - s))$ relationship is lost after transformation. $PE(t)' \cdot PE(s)'$ will depend on $t$ and $s$ in a more complex way, influenced by the specific values learned in $W_Q$ and $W_K$.
+
+So, if the exact property doesn't directly carry over, why is it important?
+
+The sinusoidal $PE$ vectors _encode_ relative position information in their structure. The relationship between $PE(t)$ and $PE(s)$ is inherently tied to $(t - s)$ via rotations in the 2D subspaces defined by $(\cos(\omega_i \tau), \sin(\omega_i \tau))$.
+
+Because the relative position information is already present in a structured way in the inputs $(PE(t), PE(s))$, it is likely much _easier_ for the network to learn transformations $W_Q, W_K$ that make the attention score $Q_t \cdot K_s$ (specifically **Term 4**, but potentially influencing other terms too) sensitive to relative positions. The network doesn't need to _invent_ the concept of relative positioning from scratch; it only needs to learn how to _extract and utilize_ the information already provided by the $PE$s.
+
+The network might learn $W_Q, W_K$ such that $PE(t)' \cdot PE(s)'$ _approximates_ a function of $(t - s)$, even if it's not the exact cosine sum.
+
+In practice, our network does not extrapolate well to longer sequences, which suggests that it doesn't actually learn relative positioning.
+
 
 ### A learnable positional embedding:
 
-We add a bias term:
+In this method we simply add a bias term:
+
+$$<\vec{q}, \vec{k}_i> + \vec{b_{\vec{i} - \vec{j}}}$$
+
+We hope that the bias term learns to encode the relative position between the query and the key.
+
+It might look like this approach is completely different than the one we described above, but if you think of the heuristic in which we can sperate the embeddings in high dimensional spaces.
+
+This learnable positional embedding is usually suboptimal compared to the previous approach since our network will need to learn relative positioning and those *fine-coarse* aspects of time from scratch. Also, we can see that the projection matrices can not directly query position.
+
+### RoPE: Rotary Positional Embedding
+
+Recalling the analysis of sinusoidal positional embeddings, we identified some potential drawbacks or areas for improvement:
+
+1. **Information Mixing**: The positional encoding $PE(t)$ is added directly to the content embedding $X_t$. This combined vector $Emb_t = X_t + PE(t)$ propagates through the entire Transformer block, including the residual connections and the Feed-Forward Network $FFN/MLP$. This forces the $FFN$ and potentially other components to handle mixed content and position information, which might impose unnecessary constraints or complexities. The primary need for explicit position information seems to be within the attention mechanism itself to compute *position-aware similarity scores*.
+2. **Potential Dilution**: Positional information is injected only once at the input layer. In deep Transformers, this initial signal might become "*diluted*" or less distinct as it passes through numerous transformations across many layers.
+3. **Loss of Pure Relative Property Post-Projection**: As rigorously shown before, while the _raw_ sinusoidal vectors $PE(t)$ and $PE(s)$ have a dot product that depends only on the relative distance $(t - s)$, this property is generally lost when calculating the attention score component $(PE(t) W_Q) \cdot (PE(s) W_K)$. The learned projections $W_Q$ and $W_K$ mix the dimensions, making the resulting position-position interaction dependent on absolute positions $t$ and $s$ in a complex way learned during training, rather than purely on $(t - s)$. While the network _can_ learn relative dependencies, it doesn't get the benefit of this inherent structure directly in the transformed space.
+
+**RoPE addresses these points with a fundamentally different approach.**
+
+Instead of adding positional information to the input embedding, $RoPE$ modifies the query ($Q$) and key ($K$) vectors _within_ the attention mechanism, __after__ they have been projected by $W_Q$ and $W_K$, using position-dependent rotations.
+
+The goal is to incorporate positional information $m$ and $n$ into the query $Q_t = x_t W_Q$ and key $K_s = x_s W_K$ respectively, such that their dot product $Q_t' \cdot K_s'$ inherently depends on the relative position $(t - s)$.
+
+$RoPE$ achieves this by applying a rotation matrix $R_{\Theta, pos}^{d_k}$ that depends on the position ($pos$) and a set of non-learnable frequencies $\Theta$.
+
+##### Mechanism:
+
+First, we compute the standard query and key vectors from the input token embeddings $x_t$ and $x_s$ (note: $x$ here represents the output of the previous layer or the initial embedding, without any added $PE$):
+$$ Q_t = x_t W_Q \in \mathbb{R}^{d_k} $$
+$$ K_s = x_s W_K \in \mathbb{R}^{d_k} $$
+
+We then define a $d_k$-dimensional block diagonal matrix $R_{\Theta, pos}^{d_k}$. The vector dimensions are conceptually paired up $(1,2), (3,4), \dots, (d_k-1, d_k)$. For each pair $(2i-1, 2i)$, a 2D rotation corresponding to position $pos$ and frequency $\theta_i$ is applied:
 
 $$
-<\vec{q}, \vec{k}_i> + \vec{b_{\vec{i} - \vec{j}}}
+\begin{equation}
+\boldsymbol{R}_{\Theta, m}^d =
+\begin{pmatrix}
+\cos m \theta_1 & -\sin m \theta_1 & 0 & 0 & \cdots & 0 & 0 \\
+\sin m \theta_1 & \cos m \theta_1 & 0 & 0 & \cdots & 0 & 0 \\
+0 & 0 & \cos m \theta_2 & -\sin m \theta_2 & \cdots & 0 & 0 \\
+0 & 0 & \sin m \theta_2 & \cos m \theta_2 & \cdots & 0 & 0 \\
+\vdots & \vdots & \vdots & \vdots & \ddots & \vdots & \vdots \\
+0 & 0 & 0 & 0 & \cdots & \cos m \theta_{d/2} & -\sin m \theta_{d/2} \\
+0 & 0 & 0 & 0 & \cdots & \sin m \theta_{d/2} & \cos m \theta_{d/2}
+\end{pmatrix}
+\end{equation}
 $$
 
-The bias term encodes the relative position between the query and the key, and it's learnable.
+The frequencies are typically set similarly to sinusoidal embeddings:
+$$\Theta = \{\theta_i = 10000^{-2(i-1)/d}, i \in [1, 2, \ldots, d/2]\}$$
+Here the base is $10000$, but it's a hyperparameter, and bigger bases, allow for dealing with increasingly longer sequences.
 
-It might look like this approach is completely different from the one we described above. However, if you think of the heuristic in which we can sperate the embeddings in high dimensional spaces and we use the $cos/sin$ relative positioning, it boils down to the same thing!
+This matrix, fundamentally contains the same information as the previous vector defined in the sinusoidal version (and it's equivalent complex form), the previous vector is suitable for addition to the input, while this matrix is suitable for **multiplication**, this is the important distinction.
 
-> It's worth mentioning that the first approach gives more expressive power, as it allows the query itself to be position oriented.
+Now we modify the query and key vectors using their respective position matrices:
+$$ Q_t' = R_{\Theta, t}^{d_k} Q_t $$$$ K_s' = R_{\Theta, s}^{d_k} K_s $$
+We can now compute the dot product using the rotated query and key vectors: $$ \text{score}(t, s) = Q_t' \cdot K_s' = (R_{\Theta, t}^{d_k} Q_t)^{\top} (R_{\Theta, s}^{d_k} K_s) $$
+Rotation matrices are orthogonal, meaning $R^{\top} R = I$ and importantly, $(R_{\Theta, pos}^{d_k})^{\top} = R_{\Theta, -pos}^{d_k}$ (rotating by $-\text{pos} \theta_i$). Also, consecutive rotations add angles: $R_{\Theta, a}^{d_k} R_{\Theta, b}^{d_k} = R_{\Theta, a+b}^{d_k}$.
+
+Using these properties in the dot product:
+$$ Q_t' \cdot K_s' = (Q_t)^{\top} (R_{\Theta, t}^{d_k})^{\top} (R_{\Theta, s}^{d_k} K_s) $$
+$$ = (Q_t)^{\top} R_{\Theta, -t}^{d_k} R_{\Theta, s}^{d_k} K_s$$
+$$ = (Q_t)^{\top} R_{\Theta, t-s}^{d_k} K_s$$
+
+Substituting back the original projections $Q_t = x_t W_Q$ and $K_s = x_s W_K$:
+$$ \text{score}(t, s) = (x_t W_Q)^{\top} R_{\Theta, t-s}^{d_k} (x_s W_K) $$
+$$ \text{score}(t, s) = x_t^{\top} W_Q^{\top} R_{\Theta, t-s}^{d_k} W_K x_s $$
+We can see how this method seamless integrates the relative positioning without getting distorted by the projection matrices as the final score explicitly depends on a transformation matrix $R_{\Theta, n-m}^{d_k}$ that is solely a function of the _relative position_ $(n - m)$. Unlike the additive sinusoidal case where the relative property was lost after projection, $RoPE$ maintains it _through_ the projection process by **applying the positional encoding multiplicatively** afterwards.
+
+Additionally, Positional information is injected _only_ within the attention calculation. The original input vectors $x_m, x_n$ (outputs from the previous layer norm or FFN) do not contain explicit positional encoding, meaning the residual connections and FFNs operate purely on content-based representations from the attention output and since $RoPE$ is applied independently within the attention mechanism of _each_ Transformer layer, the positional signal is freshly incorporated at every layer, preventing dilution.
+
+At the same time we have preserved, similar to sinusoidal embeddings, the use of different frequencies ($\theta_i$) allowing $RoPE$ to encode position across different scales. The network learns via $W_Q$ and $W_K$ how to utilize these different frequency components within the rotated space in a **relative way**.
+
+On the other hand, the rotation matrices $R_{\Theta, pos}^{d_k}$ are orthogonal. Orthogonal transformations preserve vector norms (lengths), which can contribute to training stability by preventing activations from exploding or vanishing due to the positional encoding step itself.
+
+Finally, because $RoPE$ directly encodes relative positions in a theoretically sound way within the attention score, models using $RoPE$ often exhibit better generalization and extrapolation capabilities to sequence lengths longer than those seen during training, compared to methods where relative positioning is only learned implicitly or lost post-projection, like in sinusoidal embeddings. In the latter, it's harder for our network to decipher relative positioning leading to a case where it memorizes embeddings, which leads to degrading performance with longer sequences, In $RoPE$, since we inherently encode relative positioning, our network learns how to work with relative positioning.
+
