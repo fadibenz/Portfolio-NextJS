@@ -100,3 +100,6 @@ We often discuss the inductive bias of tokenization in abstract terms of vocabul
 **Open questions:**
 + I used a small transformer; does the same apply on a large scale? Or does the scale swallow up the tails?
 + A natural reaction is to seek refuge in a seemingly "pure" method like byte-level tokenization, which makes no assumptions about language. But then I had another question: **if we use byte-level tokenization with Unicode, how would our model deal with the fact that a byte can be a character and also part of a complex emoji? Can we quantify how much the existence of such complex artifacts can hurt training?**
+
+You can find code for the implementation and experiments here: [GitHub Repo](https://github.com/fadibenz/BPE-Tokenizer)
+
