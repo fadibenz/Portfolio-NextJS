@@ -25,21 +25,18 @@ interface BlogMetadata {
 
 export async function generateStaticParams() {
   // Add your logic to get all blog slugs
-  return [{ slug: "data-leakage-tokenization" }]
+  return [{ slug: "basic-ml-doctrine" }]
 }
 
 export async function generateMetadata({ params }: any) {
   const { slug } = params
   // Add your logic to get blog metadata
   const metadata: BlogMetadata = {
-    title: "Subtle data leakage through tokenizer training",
-    date: "June 24, 2025",
-    readingTime: "15 min read",
-    description: 'A controlled experiment reveals that including validation data in ' +
-            'tokenizer training introduces subtle shortcuts that models exploit, ' +
-            '  leading to deceptive validation performance and worse generalization, ' +
-            'despite no visible change in token statistics or compression',
-    // Add other metadata
+    title: 'How to build an efficient BPE tokenizer in python',
+    description: 'A step-by-step guide into building and designing an efficient BPE tokenizer' +
+            'with a demystification of the different compromises',
+    date: "June 20, 2025",
+    readingTime: "25 min read",
   }
 
   return {
@@ -59,7 +56,7 @@ export async function generateMetadata({ params }: any) {
 export default async function BlogPost({ params }: any) {
   const filePath = path.join(
     process.cwd(),
-    `src/app/blog/posts/data-leakage-tokenization/content.mdx`
+    `src/app/blog/posts/BPE-Tokenization/content.mdx`
   )
   const source = await readFile(filePath, "utf8")
 
@@ -76,9 +73,9 @@ export default async function BlogPost({ params }: any) {
   })
 
   const metadata: BlogMetadata = {
-    title: "Subtle data leakage through tokenizer training",
-    date: "June 24, 2025",
-    readingTime: "15 min read",
+    title: "How to build an efficient BPE tokenizer in python",
+    date: "June 20, 2025",
+    readingTime: "25 min read",
     tags: ["Tokenization", "NLP", "Language Modelling"],
   }
 

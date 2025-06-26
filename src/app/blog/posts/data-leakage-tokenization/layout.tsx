@@ -13,7 +13,7 @@ export const metadata: Metadata = {
             '  leading to deceptive validation performance and worse generalization, ' +
             'despite no visible change in token statistics or compression',
         type: 'article',
-        publishedTime: '2025-06-18',
+        publishedTime: '2025-06-24',
     }
 }
 
