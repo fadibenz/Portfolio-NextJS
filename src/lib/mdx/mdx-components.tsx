@@ -114,6 +114,44 @@ export const Admonition = ({ type, title, children }: AdmonitionProps) => {
     )
 }
 
+function CustomPre({ children, ...props }: any) {
+  // Extract the code element from children
+  const code = children?.props?.children || ''
+  const language = children?.props?.className?.replace('language-', '') || 'text'
+
+  return (
+    <CodeBlock
+      code={code.trim()}
+      language={language}
+    />
+  )
+}
+
+// Custom code component for inline code
+function CustomCode({ children, className, ...props }: any) {
+  // If it has a language class, it's a code block (handled by pre)
+  if (className?.startsWith('language-')) {
+    return <code {...props}>{children}</code>
+  }
+
+  // Otherwise it's inline code
+  return (
+    <code
+      className={cn(
+        "font-mono text-sm",
+        "bg-purple-100 dark:bg-purple-900/30",
+        "text-purple-700 dark:text-purple-300",
+        "px-1.5 py-0.5 rounded",
+        "border border-purple-200 dark:border-purple-800/50"
+      )}
+      {...props}
+    >
+      {children}
+    </code>
+  )
+}
+
+
 // Define MDX components
 export const mdxComponents: MDXComponents = {
     h1: ({ children }) => (
@@ -208,30 +246,10 @@ export const mdxComponents: MDXComponents = {
         </span>
     ),
 
-    code: ({ children, className }) => {
-        const codeString = React.Children.toArray(children).join("")
-        const match = /language-(\w+)/.exec(className || "")
-        const language = match ? match[1] : ""
-
-        if (!language) {
-            return (
-                <code
-                    className={cn(
-                        monoFont.className,
-                        "px-1.5 py-0.5 mx-0.5 my-0.5",
-                        "text-inherit",
-                        "bg-purple-100/80 dark:bg-purple-900/50",
-                        "text-purple-800 dark:text-purple-200",
-                        "rounded-md",
-                        "inline-block leading-normal"
-                    )}
-                >
-                    {codeString}
-                </code>
-            )
-        }
-        return <CodeBlock code={codeString} language={language} />
-    },
+    pre: CustomPre,
+    // Override code for inline code styling
+    code: CustomCode,
+    // Custom components
 
     blockquote: ({ children }) => (
         <blockquote

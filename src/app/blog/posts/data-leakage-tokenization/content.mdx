@@ -1,30 +1,131 @@
+After the painful process of implementing a BPE tokenizer (and optimizing it), I hit this question: Should I train it exclusively on my training data?
 
-I always thought of tokenization as a mere pre-processing step that serves the purpose of converting the symbolic, sequential nature of text into a meaningful numerical format, but it turns out to be the most overlooked source of inductive bias that can subtly influence a model's behavior.
+Every ML course I've taken forbids using the validation set for pre-processing, yet I couldn't find any papers testing this, so I decided to investigate myself.
 
-You probably never trained your tokenizer on your validation or test sets. But what, specifically, goes wrong if you do?
+My goal was to learn what, specifically, goes wrong if your tokenizer is trained on validation data and whether it introduces a bias that inflates performance.
 
-I ran a set of targeted experiments to find out. The results reveal how a seemingly innocuous choice, like including the validation set in tokenizer training, can introduce *invisible* data leakage. We notice no obvious compression gain, no red flags in token statistics, and yet the model overfits badly.
+I ran controlled experiments (30M–125M LLaMA-style) and found no measurable bias from training the tokenizer on training + validation when data is large and diverse.
 
-### Setup:
+## Experimental Setup
 
-To isolate the impact of this choice, I designed a straightforward experimental setup:
+To isolate the impact of this choice, I designed a controlled experimental setup. The goal was to measure the precise downstream effects of training a tokenizer on data that includes the validation set.
+### Dataset: OpenWebText Subset
 
-1.  **Corpus Division:** I started with the TinyStories [Eldan and Li, 2023](https://arxiv.org/abs/2305.07759) dataset. I divided the original training data into a new, smaller training set ($90\%$) and a validation set ($10\%$). The original validation set was kept as a *held-out test set*, ensuring it remained completely unseen by both the tokenizers and the models during training.
-2.  **Tokenizer Training:** With a fixed vocabulary size, I trained two separate Byte-Pair Encoding ($BPE$) tokenizers:
-    -   **Tokenizer A (The "Clean" Tokenizer):** Trained _only_ on the new training set. This follows best practices.
-    -   **Tokenizer B (The "Leaky" Tokenizer):** Trained on the new training set _plus_ the validation set.
+ I used a pre-processed subset of the **OpenWebText** corpus, which is large enough to exhibit meaningful trends but lightweight enough for rapid experimentation.
 
-> **Goal:** Measure the precise downstream effects of the "leaky" approach.
+To simulate a realistic leakage scenario, I re-partitioned the original dataset:
 
-### Hypothesis 1:
+* **Training Set:** 80% of the original `train.txt`. This is the primary data for training the models.
+* **Validation Set:** The remaining 20% of the original `train.txt`. This is used for validation during model training.
+* **Held-out Test Set:** The original `valid.txt`. This set remains completely untouched by either the tokenizer or the model during training.
 
-My first hypothesis was that the leakage would be directly observable in the tokenization metrics. A tokenizer trained on the validation data (**Tokenizer B**) should, in theory, be "better" at tokenizing it. I expected to see:
+| Split      | # Documents | Token Count (M) |
+| :--------- | :---------- | :-------------- |
+| Train      | 80,000      | ~ 45.1          |
+| Validation | 20,000      | ~ 11.3          |
+| Test       | 20,000      | ~ 11.2          |
+> **Table 1:** OpenWebText subset statistics after split and tokenization. Note that both tokenizers lead to the same number of tokens.
 
--   **Higher Compression:** **Tokenizer B** should represent the validation text with fewer tokens, resulting in a higher compression ratio (more bytes per token).
--   **Different Fragmentation:** Words in the validation set would be broken down more efficiently, altering the word fragmentation statistics.
--   **Greater Token Overlap:** The vocabulary learned by **Tokenizer B** would have more in common with the tokens found in the validation set.
+### Tokenizer
 
-I ran a series of tests comparing **Tokenizer A** and **B** on the validation and held-out test sets. The results were that the metrics were virtually identical.
+#### Implementation:
+
+As I mentioned before, this whole question popped up when I was building my BPE tokenizer, so I will briefly talk about how I implemented it since this is the version I used for all experiments.
+
+For those unfamiliar, BPE is a clever algorithm that builds a vocabulary by starting with individual characters and then iteratively merging the most frequently occurring adjacent pair of tokens. For example, if `e` and `r` appear together often, BPE might create a new token `er`. It keeps doing this until it reaches the desired vocabulary size.
+
+Building it myself allowed me to control every little detail and observe the process up close.
+
+Here are a few key design choices I made:
+
++ **Pre-tokenization:** Before BPE can merge pairs, the text needs an initial split. I borrowed the  **regular expression pattern from GPT-2**. It's great at intelligently splitting text into initial chunks of letters, numbers, and punctuation while correctly handling whitespace.
++ **Tie-Breaking:**  To ensure my tokenizer was deterministic, I implemented a simple tie-breaking rule: pick the pair that is **lexicographically greater**, comparison is done on the actual string and not in the bytes.
++ **Optimization:** I parallelized the pre-tokenization step to run across multiple CPU cores and, more importantly, I implemented an **incremental merge algorithm** that avoids rebuilding the frequency counts from scratch after every single merge.
+
+The performance boost was huge. The optimized version was nearly **10 times faster** than my initial attempt.
+
+| Version   | Pre-tokenization     | Merge Strategy               | Runtime (10k docs) |
+| :-------- | :------------------- | :--------------------------- | :----------------- |
+| Naïve     | Sequential           | Full dictionary rebuild      | 3.1 s              |
+| Optimized | Parallel (4 threads) | Incremental frequency update | **0.34 s**         |
+> **Table 2:** Tokenizer implementation runtime comparison.
+
+I include all the implementation details and code with profiling and benchmarking in this [repository](https://github.com/fadibenz/BPE-Tokenizer) The repo also contains the exact scripts used to produce the tokenizer artifacts used in these experiments. I also have a separate blog post talking about the engineering details [here](https://fadibenz.vercel.app/blog/BPE-Tokenization).
+
+#### Training:
+
+With a fixed vocabulary size of **32k**, I trained two separate Byte-Pair Encoding ($BPE$) tokenizers using a custom, optimized implementation.
+
+* **Tokenizer A (The "Clean" Tokenizer):** Trained **only** on the new training set. This follows best practices.
+* **Tokenizer B (The "Leaky" Tokenizer):** Trained on the new training set **plus** the validation set.
+
+Both tokenizers used the same hyperparameters for merges, pre-tokenization, and normalization. The only difference was the set of source documents passed to the BPE trainer.
+
+The core of the experiment is to compare the downstream performance of models that use these two tokenizers.
+
+### Model Architecture: LLaMA-Style Transformer
+
+To ensure the findings are relevant, I adopted a LLaMA-style decoder-only transformer architecture with the following  design choices:
+
+* **RMSNorm** for pre-normalization.
+* **Rotary Position Embeddings (RoPE)**.
+* **SwiGLU** activation in the feedforward layers.
+* **Shared input/output embeddings**.
+
+ I trained models of three different sizes to observe how scale might affect the results. I kept in mind best-practice hyperparameter ratios:
+
++  $d_{\text{ff}} \approx \frac{8}{3} \times d_{\text{model}}$
++ $\frac{d_{\text{model}}}{\text{n\_layers}} \approx 64 - 96$
++ $\text{n\_heads} = \frac{d_{\text{model}}}{64}$
+
+| Model  | Layers | $d_{\text{model}}$ | FFN Dim | Heads | Seq Len | Params (M) |
+| :----- | :----- | :----------------- | :------ | :---- | :------ | :--------- |
+| Small  | 8      | 512                | 1365    | 8     | 512     | 30.1       |
+| Medium | 12     | 768                | 2048    | 12    | 512     | 61.4       |
+| Large  | 16     | 1024               | 2730    | 16    | 512     | 124.6      |
+
+> **Table 3:** Transformer architecture hyperparameters.
+
+### Training Setup
+
+All experiments were conducted on Kaggle, which meant I was on a tight compute budget with weekly quotas on GPU and TPU time.
+
+Before burning through my hours, I did some back-of-the-envelope math to figure out the computational cost of different training configurations. The total number of tokens a model sees is pretty simple to calculate:
+
+$\text{Tokens} = \text{Batch Size} \times \text{Context Length} \times \text{Training Steps}$
+
+And to estimate the total compute needed in FLOPs, there's a handy rule of thumb from the Chinchilla paper: $\text{Total FLOPs} \approx 6 \times \text{Tokens} \times \text{Parameters}$
+
+I crunched the numbers for a few potential setups, assuming a 15k training, to see what was feasible:
+
+| Context Length | Batch Size | Total Tokens | FLOPs (30M model)     |
+| :------------- | :--------- | :----------- | :-------------------- |
+| 256            | 64         | 246M         | $4.43 \times 10^{15}$ |
+| 512            | 64         | 492M         | $8.85 \times 10^{15}$ |
+| 1024           | 64         | 983M         | $1.77 \times 10^{16}$ |
+| 1024           | 128        | 1.97B        | $3.93 \times 10^{16}$ |
+> **Table 4:** Estimated training compute across configurations using $\text{FLOPs} \approx 6 \times \text{tokens} \times \text{params}$. I applied the same analysis for other model sizes.
+
+To stay within the 16 GB of memory on each TPU core while still getting a decent throughput, I had to find a sweet spot. I settled on a **context length of 512** for all models and scaled-down the batch size based on model size (64 for the 30M, 48 for the 60M, and 32 for the 120M model) to avoid OOM errors.
+
+For the training itself, I used the **AdamW** optimizer with a custom **cosine learning rate scheduler**. I evaluated the model using an overlapping sliding window to get a more stable perplexity score.
+
+**Other training details in the repo:** Mixed-precision training, per-client batch splitting used on TPU, checkpoint frequency, and Weights & Biases logging configuration.
+
+> **Important:**
+>
+> All runs use a single seed due to Kaggle budget constraints; reported PPL differences are therefore single-seed estimates (see Appendix for variance discussion).
+## Hypothesis 1: Leakage Will Be Obvious in Tokenizer Metrics
+
+My first hypothesis was that the leakage would be directly observable in the tokenization metrics.
+
+A tokenizer trained on the validation data (**Tokenizer B, leaky**) should, in theory, be "better" at tokenizing it. I expected to see:
+
+- **Higher Compression:** **Tokenizer B** should represent the validation text with fewer tokens, resulting in a higher compression ratio (more bytes per token).
+- **Different Fragmentation:** Words in the validation set would be broken down more efficiently, altering the word fragmentation statistics.
+- **Greater Token Overlap:** The vocabulary learned by **Tokenizer B** would have more in common with the tokens found in the validation set.
+
+I ran a series of tests comparing **Tokenizer A** and **B** on the validation and held-out test sets. The results were that the metrics were virtually identical.
 
 ![Jaccard similarity of token sets between the clean and leaky tokenizers.](/images/Blog/data-leakage/figure1-token-overlap.png)
 
@@ -32,74 +133,107 @@ I ran a series of tests comparing **Tokenizer A** and **B** on the validation an
 
 ![Word fragmentation comparison between the clean and leaky tokenizers on the validation set.](/images/Blog/data-leakage/figure-3-word-fragmentation.png)
 
+These results show:
++ **Jaccard overlap** of validation and test sets: **identical = 58.99%** (**Δ = 0.001**).
++ Compression ratio **identical = 4.13**.
++ Word-fragmentation distributions indistinguishable within measurement noise.
 
-I initially suspected this might be an artifact of the synthetic nature of TinyStories. I reran the entire experiment on the much larger and more diverse OpenWebText dataset.
+> **TL;DR:**
+>
+> Including the validation set in tokenizer training did not produce a statistically significant change in compression or fragmentation. The validation set is simply too small and _statistically similar_ to the training data to meaningfully alter the **BPE** merge rules. My initial hypothesis was wrong; the data leakage is more subtle.
 
-The results held: **the statistics remained identical.**
 
-Including the validation set in tokenizer training did not produce a statistically significant change in compression or fragmentation.
 
-The validation set is simply too small and *statistically similar* to the training data to meaningfully alter the **BPE** merge rules. My initial hypothesis was wrong; the data leakage is more subtle.
+---
+## Hypothesis 2: Leakage Affects Learnability, Not Representation
 
-### Hypothesis 2:
+If the leakage isn't visible in the tokenization statistics, it must be more subtle. My second hypothesis was that the leakage affects a model's **learnability rather than representation efficiency**.
 
-If the leakage isn't visible in the tokenization statistics, it must be more subtle. My second hypothesis was that the leakage has to do with *learnability rather than representation efficiency*, and this would only manifest during model training.
+By seeing the validation data during tokenization, **Tokenizer B** supposedly creates a vocabulary that is ever-so-slightly "specialized" for it. A language model might then exploit these specialized tokens as a **shortcut**, achieving a better score on the validation set without genuine generalization.
 
-By seeing the validation data during tokenization, **Tokenizer B** creates a vocabulary that is ever-so-slightly "specialized" for it. A language model might then exploit these specialized tokens as a **shortcut**, achieving a better score on the validation set without genuine generalization.
+#### Initial Experiment: A Small-Scale Model (~30M)
 
-To test this, I trained two identical small transformer models (~20M parameters) from scratch:
+To test this, I trained two identical small transformer models (~30M parameters) from scratch:
 
--   **Model A:** Used the "Clean" Tokenizer A.
--   **Model B:** Used the "Leaky" Tokenizer B.
+* **Model A:** Used the "Clean" Tokenizer A.
+* **Model B:** Used the "Leaky" Tokenizer B.
 
-I trained both models on the same training set and monitored their performance on the validation and test sets using perplexity ($PPL$), where lower is better.
+I trained both on the same training set and monitored their validation perplexity ($PPL$). The validation curve showed that **Model B consistently outperformed Model A** during training.
 
-The following curve for the validation $PPL$ shows that *Model B* consistently outperforms *Model A* during training.
+Finally, I picked the best checkpoint for each model based on validation perplexity and evaluated them on the held-out test set.
 
-![Validation perplexity for Model A (clean tokenizer) and Model B (leaky tokenizer) during training.](/images/Blog/data-leakage/figure-4-val-curve.png)
 
-Finally, I picked the best model from each experiment based on validation perplexity and evaluated both on the held-out test set. The results are the following:
+![](/images/Blog/data-leakage/30M_training.png)
 
-![Final perplexity scores for Model A and Model B on the validation and held-out test sets.](/images/Blog/data-leakage/figure-5-final-results.png)
+> **figure 1:** Training loss of 30M model (with Clean (A) and Leaky (B) tokenizer )
 
-**Analysis of the Results:**
+| Model Size | Tokenizer | Val PPL  | Test PPL  |
+| :--------- | :-------- | :------- | :-------- |
+| 30M        | Clean     | **6.63** | 10.32     |
+| 30M        | Leaky     | 6.64     | **10.31** |
+> **Table 5:** Results of validation PPL and test PPL using the 30M model.
 
--   **On the Validation Set:** *Model B*, which used the leaky tokenizer, achieved a _lower_ perplexity than *Model A* ($4.0854\ \text{vs.}\ 4.1065$). It appeared to be the better model.
--   **On the Test Set:** The roles reversed. *Model A*, using the clean tokenizer, generalized better and achieved a significantly _lower_ perplexity ($5.0240\ \text{vs.}\ 5.1033$).
 
-This is a textbook case of **overfitting**. *Model B* leveraged the subtle information leaked by its tokenizer to perform better on the validation data it had indirectly "seen" before.
+>**TL;DR:**
+>
+>Validation perplexity differed by **≤0.01** and test perplexity by **≤0.01** (30M), within run-to-run noise. I only ran the experiment with a single-seed, *multi-seed variance will be reported in Appendix once budget allows*.
+>
+>There's no sign of overfitting, the models performance was identical on both sets and tokenizer training **did not lead to any observable leakage**. This hypothesis is wrong, however results might differ at scale.
 
-However, this advantage was only on the validation set; it failed to generalize to the truly unseen test set, where its performance was worse. The "leaky" tokenizer gave the model a shortcut to a better validation score, fooling us into thinking it was the superior model.
+## Hypothesis 3: Leakage results only show up at larger scales.
 
-### Interpretation of results:
+To test this hypothesis, I scaled to 60M and 125M within my Kaggle budget.
 
-Now that we have these results, we can move beyond the observation of overfitting and dissect the underlying mechanism. _Why_ does a statistically insignificant change in the tokenizer's training data lead to a significant and deceptive change in the model's performance?
+I scaled the training steps, learning rate and other hyperparameters to provide a fair comparison.
 
-The validation set, being only 10% of the tokenizer's training corpus, is a statistically weak signal. The $BPE$ algorithm is greedy; it iteratively merges the most frequent pairs of bytes. The vast majority of these high-frequency pairs are common to both the training and validation sets.
 
-Therefore, the core of the vocabulary—the tokens representing common characters, syllables, and short words—remains identical between **Tokenizer A** (Clean) and **Tokenizer B** (Leaky). The differences only emerge in the "long tail" of the merge process.
+![](/images/Blog/data-leakage/60M_125M_training.png)
+> **Figure 2:** Training loss for 60M and 125M models.
 
-This explains why aggregate metrics like compression ratio and Jaccard similarity are nearly identical. The number of these "specialty" tokens is too small, creating the illusion that the tokenizers are the same.
+| Model Size | Tokenizer | Val PPL  | Test PPL |
+| :--------- | :-------- | :------- | :------- |
+| 60M        | Clean     | **6.15** | **9.80** |
+| 60M        | Leaky     | 6.18     | 9.82     |
+| 125M       | Clean     | **5.61** | 9.1      |
+| 125M       | Leaky     | 5.68     | **9.2**  |
+> **Table 6:** Results of validation PPL and test PPL for 60M and 125M models.
 
-But these specialty tokens become a vulnerability when it comes to training a Transformer; tokenization bakes in a strong inductive bias.
 
-Let's consider a hypothetical example. Suppose the phrase "the shiny red car" appears more frequently in our validation set than in the training set.
--   **Tokenizer A (Clean)** might tokenize this as `["the", "Ġshiny", "Ġred", "Ġcar"]`. To predict `Ġcar`, **Model A** must learn the semantic relationship between the concepts of "shiny," "red," and "car." This is a generalizable skill.
--   **Tokenizer B (Leaky)**, having seen "red car" more often during its training, might have created a single token for it: `Ġred_car`. Now, to predict this sequence, **Model B** only needs to learn the simpler association between `Ġshiny` and the single token `Ġred_car`.
+> **TL;DR:**
+>
+> Scaling to 60M and 125M did not reveal an effect: **ΔTest-PPL ≤ 0.02** across sizes. Across 30–125M, test PPL is indistinguishable between tokenizers.
 
-This new token, `Ġred_car`, acts as a **shortcut**. It encodes information that is specific to the validation distribution. For **Model B**, correctly predicting `Ġred_car` provides a larger "chunk" of correctness, leading to a faster reduction in validation loss compared to **Model A**. But the model isn't learning a general rule about adjectives and nouns; it's learning to exploit an artifact of the tokenization process.
 
-In conclusion, training the tokenizer on the validation set introduces a subtle but powerful **information leak**. This information is too sparse to be seen in tokenization statistics but is readily exploited by a high-capacity neural network. It creates a deceptive divergence between validation and test performance, ultimately leading an engineer to choose and deploy the inferior model.
+## Interpretation of Results
 
-## Final thoughts:
+BPE merges are dominated by high-frequency pair counts.
+When `Val` is a small, in-distribution sample of Train,
+adding `Val` barely perturbs those counts,
+so the learned merges, and thus the segmentation, are effectively unchanged.
+In other words, “exposure” at the tokenizer stage isn’t a strong shortcut when the distributions match and `Val` is small.
 
-This experiment began as a simple query into data leakage, but it ends with a deeper appreciation for the profound influence of the tokenizer.
+I validated this by both looking at the results from the tokenizer statistics and the metrics
+from training and validating models with different sizes.
 
-We often discuss the inductive bias of tokenization in abstract terms of vocabulary size and efficiency. Yet, this controlled test proves that we can also peek into the inductive bias through the data leakage lens.
+> Note again that my experiments used one seed, drawing conclusive results would demand further investigation.
 
-**Open questions:**
-+ I used a small transformer; does the same apply on a large scale? Or does the scale swallow up the tails?
-+ A natural reaction is to seek refuge in a seemingly "pure" method like byte-level tokenization, which makes no assumptions about language. But then I had another question: **if we use byte-level tokenization with Unicode, how would our model deal with the fact that a byte can be a character and also part of a complex emoji? Can we quantify how much the existence of such complex artifacts can hurt training?**
+---
 
-You can find code for the implementation and experiments here: [GitHub Repo](https://github.com/fadibenz/BPE-Tokenizer)
+## Final Thoughts
 
+This experiment began as a simple query into data leakage and although this is a simple idea and setup it proved to be very helpful in building my intuition into experimenting and going from questions to verifiable hypothesis to running experiments and finally interpreting results.
+
+>**TL;DR for practitioners:**
+>
+>+  Training your BPE tokenizer on `train + val` is unlikely to bias validation/test PPL when both sets are large and in-domain.
+>+ If your validation set is small, out-of-domain, or you work with rare-token domains (code, biomedical), prefer train-only tokenizers or explicitly quantify tokenizer perturbation.
+> + if possible, run 2–3 seeds for critical comparisons, small **Δs** can otherwise be single-seed noise.
+
+To reproduce the previous results, you can find the code for the implementation and experiments here: [GitHub Repo](https://github.com/fadibenz/BPE-Tokenizer)
+
+## References:
+
+- CS336 2025, Assignment 1 public repository.
+- Hoffmann, J., et al. — Training Compute-Optimal Large Language Models (Chinchilla).
+- Sennrich, R., Haddow, B., Birch, A. — Neural Machine Translation of Rare Words with Subword Units.
+- Aaron Gokaslan, Vanya Cohen, Ellie Pavlick, and Stefanie Tellex. OpenWebText corpus.

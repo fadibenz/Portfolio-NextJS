@@ -23,7 +23,6 @@
   color: black !important;
   margin-bottom: 1rem;
   line-height: 1.6;
-
 }
 
 .mdxContent img {
@@ -34,19 +33,15 @@
   margin-bottom: 1.5rem;
 }
 
+/* Remove the old inline code styling since we handle it in the component now */
 .mdxContent code {
-  font-family: 'Gräbenbach', monospace;
-  background-color: rgba(124, 58, 237, 0.1);
-  color: rgb(124, 58, 237);
-  padding: 0.2rem 0.4rem;
-  border-radius: 0.25rem;
+  /* This will be handled by our CustomCode component */
 }
 
+/* Remove pre styling since we use our CodeBlock component */
 .mdxContent pre {
-  padding: 1rem;
-  border-radius: 0.5rem;
-  overflow-x: auto;
-  margin: 1.5rem 0;
+  /* This will be handled by our CodeBlock component */
+  margin: 0; /* Reset any default margins */
 }
 
 .mdxContent blockquote {
@@ -66,7 +61,6 @@
 .mdxContent a:hover {
   color: #dd3418;
 }
-
 
 /* Ensure math display has proper spacing */
 .mdxContent .katex-display {

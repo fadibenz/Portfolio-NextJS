@@ -1,17 +1,15 @@
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-    title: 'Subtle data leakage through tokenizer training',
-        description: 'A controlled experiment reveals that including validation data in ' +
-            'tokenizer training introduces subtle shortcuts that models exploit, ' +
-            '  leading to deceptive validation performance and worse generalization, ' +
-            'despite no visible change in token statistics or compression',
+    title: 'Does Tokenizer Leakage Actually Matter? An Experiment with OpenWebText\n',
+        description: 'A controlled experiment deconstructing the dogma of "never train on the validation set" ' +
+            ' that systematically investigates if including validation data in ' +
+            'tokenizer training introduces subtle shortcuts that models exploit.',
     openGraph: {
-        title: 'Subtle data leakage through tokenizer training',
-        description: 'A controlled experiment reveals that including validation data in ' +
-            'tokenizer training introduces subtle shortcuts that models exploit, ' +
-            '  leading to deceptive validation performance and worse generalization, ' +
-            'despite no visible change in token statistics or compression',
+        title: 'Does Tokenizer “Leakage” Actually Matter? An Experiment with OpenWebText\n',
+        description: 'A controlled experiment deconstructing the dogma of "never train on the validation set" ' +
+            ' that systematically investigates if including validation data in ' +
+            'tokenizer training introduces subtle shortcuts that models exploit.',
         type: 'article',
         publishedTime: '2025-06-24',
     }

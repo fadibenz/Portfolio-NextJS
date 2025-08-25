@@ -8,9 +8,10 @@ import { mdxComponents } from "@/lib/mdx/mdx-components"
 import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import rehypeKatex from "rehype-katex"
-// Remove rehypePrism since we're using our own CodeBlock component
+import rehypePrism from "rehype-prism-plus"
 import styles from "../../_components/BlogHeader.module.css"
 import mdxStyles from "@/styles/mdx-content.module.css"
+
 
 interface BlogMetadata {
   title: string
@@ -21,19 +22,25 @@ interface BlogMetadata {
   author?: string
 }
 
+
 export async function generateStaticParams() {
-  return [{ slug: "BPE-Tokenization" }]
+  // Add your logic to get all blog slugs
+  return [{ slug: "basic-ml-doctrine" }]
 }
 
 export async function generateMetadata({ params }: any) {
   const { slug } = params
+  // Add your logic to get blog metadata
   const metadata: BlogMetadata = {
-    title: 'How to build an efficient BPE tokenizer in python',
-    description: 'A step-by-step guide into building and designing an efficient BPE tokenizer' +
-            'with a demystification of the different compromises',
-    date: "June 20, 2025",
-    readingTime: "25 min read",
-  }
+    title: "A Recipe for Filtering Language Modelling Data",
+    date: "August 18, 2025",
+    readingTime: "20 min read",
+    description: "A deep dive into the methodology and engineering required to transform terabytes of messy, " +
+        "raw Common Crawl data into a high-quality dataset for training language models. " +
+        "This post details a step-by-step filtering recipe, a scalable pipeline architecture, " +
+        "and validates the final corpus by training a GPT-2 model.",
+    tags: ["LLM", "Data Engineering", "NLP", "Data Curation", "Python", "Machine Learning"],
+}
 
   return {
     title: metadata.title,
@@ -52,7 +59,7 @@ export async function generateMetadata({ params }: any) {
 export default async function BlogPost({ params }: any) {
   const filePath = path.join(
     process.cwd(),
-    `src/app/blog/posts/BPE-Tokenization/content.mdx`
+    `src/app/blog/posts/data-pipeline/content.mdx`
   )
   const source = await readFile(filePath, "utf8")
 
@@ -63,17 +70,16 @@ export default async function BlogPost({ params }: any) {
       parseFrontmatter: true,
       mdxOptions: {
         remarkPlugins: [remarkGfm, remarkMath],
-        // Only keep rehypeKatex, remove rehypePrism
-        rehypePlugins: [rehypeKatex],
+        rehypePlugins: [rehypeKatex, rehypePrism],
       },
     },
   })
 
   const metadata: BlogMetadata = {
-    title: "How to build an efficient BPE tokenizer in python",
-    date: "June 20, 2025",
-    readingTime: "25 min read",
-    tags: ["Tokenization", "NLP", "Language Modelling"],
+    title: "A Recipe for Filtering Language Modelling Data",
+    date: "August 18, 2025",
+    readingTime: "20 min read",
+    tags: ["LLM", "Data Engineering", "NLP", "Data Curation", "Python", "Machine Learning"]
   }
 
   return (
