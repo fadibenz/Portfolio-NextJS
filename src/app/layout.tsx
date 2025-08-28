@@ -3,16 +3,8 @@ import Navigation  from '@/components/layout/Navigation/Navigation';
 import { Footer } from '../components/layout/Footer/Footer';
 import './globals.css';
 
-
-
 export const metadata: Metadata = {
-  title: 'Fadi Benzaima - Frontend Developer',
-  description: 'Frontend developer specializing in React and Next.js',
-  openGraph: {
-    title: 'Fadi Benzaima - Frontend Developer',
-    description: 'Frontend developer specializing in React and Next.js',
-    images: ['/og-image.jpg'],
-  },
+  title: 'Fadi Benzaima',
 };
 
 export default function RootLayout({
