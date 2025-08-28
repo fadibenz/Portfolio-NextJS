@@ -37,7 +37,7 @@ export const blogPosts: BlogPost[] = [
         title: "Positional Encoding heuristic understanding",
         description: 'This blog post offers a fun heuristic to' +
             ' understand positional encoding in high dimensions',
-        date: "March 03, 2025",
+        date: "April 04, 2025",
         readingTime: "15 min read",
         slug: "Positional-Encoding",
     },
@@ -53,12 +53,12 @@ export const blogPosts: BlogPost[] = [
         readingTime: "15 min read",
         slug: "Why-Attention",
     },
-    {
-        id: 6,
-        title: "RNNs motivation and challenges",
-        description: "A different perspective to Recurrent Neural Networks",
-        date: "February 25, 2025",
-        readingTime: "15 min read",
-        slug: "RNNs-Motivation-Challenges",
-    }
+    // {
+    //     id: 6,
+    //     title: "RNNs motivation and challenges",
+    //     description: "A different perspective to Recurrent Neural Networks",
+    //     date: "February 25, 2025",
+    //     readingTime: "15 min read",
+    //     slug: "RNNs-Motivation-Challenges",
+    // }
 ] 

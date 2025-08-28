@@ -1,291 +1,233 @@
-Neural networks consume information in a numerical form organized into tensors. This is not necessarily an optimal representation of information or a reflection of how we humans process it, but rather a practical representation dictated by the capabilities of our current hardware and software paradigms.
+Over the last few weeks, I tired to dig deeply into tokenization and learn how to build a BPE tokenizer from the ground up, I will document here both my understanding of tokenization and how to implement a performant  version.
 
-In Computer Vision for example we assume that pixels are meaningful statistical units of images. We are essentially imposing a discrete grid on continuous visual information. We lose information about sub-pixel details, we make arbitrary choices about colour spaces and bit depths, and we force everything into rectangular grids even though that's not how biological vision works. But it's good enough, it works well with our architectures and we rarely see it discussed as a bottleneck.
+I like to think of tokenization as a trade-off between  computational efficiency and learnability.
 
-In Natural Language Processing (NLP), the input is text. The primary challenge is to convert this symbolic, sequential data into a meaningful numerical format. This process is called **tokenization**.
+---
 
-There are different ways to approach this. All involve constructing a look-up table, or vocabulary, that maps a chosen *granularity of text* to a unique integer $ID$. This $ID$ is then mapped to a **learnable embedding vector**.
+## Efficiency vs. Meaning
 
-The choice of granularity; bytes, characters, sub-words, or words is not a trivial implementation detail. It is a fundamental decision that deeply influences the model's performance for two primary reasons: **computational efficiency** and **learnability**.
+At its core, tokenization involves creating a vocabulary (a look-up table) that maps chunks of text to integer IDs. The choice of what constitutes a "chunk" (The granularity of text to use) is very important.
 
-### Efficiency and The Compression Ratio:
+### Efficiency
 
-A model's computational cost, particularly for attention-based architectures like the Transformer, is highly sensitive to sequence length. The attention mechanism has a complexity that scales quadratically with the sequence length, $O(n^2)$, where $n$ is the number of tokens.
+Transformer models, the architecture behind most LLMs, have a computational complexity that scales quadratically with the sequence length ($O(n^2)$).
 
-This places a premium on representing text with the fewest tokens possible without losing essential information. We can quantify this with the **compression ratio**, or its inverse, **Bytes per Token**:
+This puts a huge premium on representing text with the fewest tokens possible. We measure this using the **Bytes per Token** ratio:
 
-$$\text{Bytes per Token}= \frac{\text{Number of Bytes in Original Text}}{\text{Number of Tokens}}$$
+$$\text{Bytes per Token} = \frac{\text{Number of Tokens}} {\text{Number of Bytes in Text}​}$$
 
-A lower number of tokens for a given text results in shorter sequences, which means faster training and inference, reduced memory consumption, and the ability to process longer contexts.
+A lower ratio means more compression and shorter sequences, leading to faster training, quicker inference, and the ability to handle longer contexts.
 
-Let's take an example, say we want to tokenize the following:
+Let's consider an example sentence: `The apparent meaning is for the masses, and the inner meaning is for the learned.` (93 bytes)
 
-```
-The apparent meaning is for the masses, and the inner meaning is for the learned.
-```
+- **Word-level tokenization** is highly efficient. It splits the sentence into 15 tokens, giving us a great `6.2 Bytes/Token` ratio. But it's brittle. The vocabulary explodes with morphological variants ("run", "runs", "running"), and it completely fails on any word not seen during training (**Out-of-Vocabulary** or OOV), forcing us to use a generic `<UNK>` token that throws away information.
+-
+- **Byte-level tokenization** solves the OOV problem perfectly—any text can be represented as a sequence of its 256 possible bytes. However, it's incredibly inefficient. Our 93-byte sentence becomes 93 tokens, yielding a `1.0 Bytes/Token` ratio. This is no compression at all, leading to painfully long sequences.
 
-The previous text has **93 characters**. If we assume each character is 1 byte (as in $ASCII$ or $UTF-8$ for this basic text), then it's **93 bytes**.
+We need a middle ground: great compression without the OOV problem. This is where **subword tokenization** comes in.
 
-- **Word-level tokenization** offers an excellent compression ratio. For the previous example we  would get $15$ tokens (Separated by weight space), which corresponds to a compression ratio of around:
-  $$\text{Bytes per Token} = \frac{93}{15} = 6.2\ \text{Bytes/Token}$$
-  This is excellent and solves the efficiency problem, however, it struggles with morphological variants (e.g., "run", "runs", "running" are three separate tokens), this leads to a very large vocabulary (Look-up table we need to store) and fails completely on out-of-vocabulary ($OOV$) words since we can never have all words, forcing the use of a generic `<UNK>` token that discards information.
-- **Byte-level tokenization** now this solves the $OOV$ problem, as any text can be represented as a sequence of bytes. However, it has a terrible compression ratio, leading to extremely long sequences and making it computationally expensive, in  the previous text we would get:
-  $$\text{Bytes per Token} = \frac{93}{93} = 1\ \text{Bytes/Token}$$
-  This is the worst compression ratio we can have, there's no compression.
+### The Learning Problem:
 
-The question here becomes how to find a middle ground between the two: have a decent compression ratio while preserving the ability to represent arbitrary words.
+Beyond efficiency, tokenization injects a powerful **inductive bias** into the model.
 
-Now if you have any background in Computer Science, you probably thought of information theory, Shannon and friends, the moment I started talking about compression ratio. That's a good instinct. Deep learning, as a relatively young field, frequently leverages insights from established disciplines, a form of intellectual arbitrage you'll find everywhere.
+- **Byte-level tokenization** offers a _weak_ inductive bias. We're telling the model, "Here's a long stream of numbers; figure out from scratch that `(100, 111, 103)` represents the concept of a 'dog'." This requires a massive amount of data and computation for the model to learn basic linguistic structures.
 
-Back to information theory: we know there's a theoretical minimum number of bits to represent information losslessly, quantified by **Shannon entropy**. Lossless compression algorithms like **Huffman coding** approach this by assigning shorter codes to more frequent symbols.
+- **Subword tokenization** provides a _stronger_, more helpful bias. By pre-chunking text into statistically common units (like `token` and `ization`), we give the model a head start. We're hinting that these chunks are meaningful building blocks. It’s analogous to how a Vision Transformer first breaks an image into patches instead of processing one pixel at a time.
 
-This directly applies to tokenization, although, in a way, inversely. While Huffman coding takes larger, meaningful symbols and breaks them down into optimal, shorter bit sequences, **subword tokenization** does the opposite. It builds up from the most granular units (characters or bytes) by merging the most frequent sequences into larger, more semantically meaningful subword tokens.
+Both efficiency and learnability point to subword tokenization as the superior strategy. The most popular algorithm for achieving this is **Byte-Pair Encoding (BPE)**.
 
-This form of subword tokenization leads to a better compression ratio than byte-level, and since we learn how to construct the subwords we are guaranteed to have a decent compression ratio, the other benefit is **coverage** since any word can be decomposed into its subword units, effectively eliminating the $OOV$ problem.
+---
 
-### Learnability and Inductive Bias
+## Byte-Pair Encoding (BPE): A Naive Implementation
 
-The $OOV$ problem of word-level tokenization totally takes it out of consideration for the best way to tokenize and that's fair.
+BPE is a simple, greedy algorithm. It starts with the most basic units (bytes) and iteratively merges the most frequent adjacent pairs to build a vocabulary of meaningful subwords. Let's build a BPE tokenizer from the ground up to see exactly how it works.
 
-Now on the other hand, a lot of people are still not sold on subword tokenization and are actively trying to find a way to directly use byte-level tokenization a nod to pixels in images. The thing is for such thing to be possible, we need a new architecture all together. Beyond efficiency, tokenization is a powerful mechanism for injecting an **inductive bias** into the model. An inductive bias is a set of assumptions the model uses to generalize from finite training data to unseen examples.
+### Step 1: Vocabulary Initialization
 
-The Transformer architecture famously has a weak inductive bias but the way we segment the text itself provides a fundamental bias.
+We start with a base vocabulary of all 256 possible byte values. This ensures we have 100% coverage, any text can be represented.
 
-The key insight is that **sample complexity** - how many examples you need to learn a concept - depends heavily on the representation space and the hypothesis class we're searching over. Just because two tokenization schemes can represent the same information doesn't mean they're equally learnable.
 
-**Byte-level tokenization** imposes a very weak inductive bias. The model is given a long stream of bytes and must learn from scratch that sequences like `(100, 111, 103)` (the bytes for "dog") form a coherent semantic unit. This creates a massive hypothesis space for the model to search through, potentially requiring more data (**sample complexity**), computation and **regularization**  to converge on good solutions.
-
- Furthermore, language modelling on byte sequences is difficult because the longer input sequences create very long-term dependencies in the data, although attention can mitigate that, research shows that we are still constrained by a certain context-length.
-
-Now on the other hand, **sub-word tokenization** introduces a stronger, more useful inductive bias. By pre-chunking the text into statistically common sub-units (e.g., `token`, `ization`), we are giving the model a head start. We are constraining the hypothesis space, suggesting that these chunks are likely to be meaningful semantic building blocks. This is analogous to how Convolutional Neural Networks ($CNNs$) use the inductive bias of locality and spatial invariance, or how Vision Transformers ($ViTs$) first break an image into patches.
-
-This brief introduction shows that both efficiency and learnability point towards sub-word tokenization as the superior strategy, and Byte-Pair Encoding ($BPE$) is arguably the most prevalent algorithm for achieving it.
-
-### Byte-Pair Encoding (BPE): Compression as Inductive Bias
-
-Byte-Pair Encoding ($BPE$)  is a greedy data compression algorithm It operates on a simple principle: **iteratively merge the most frequent adjacent pairs of tokens in a corpus**, building up a vocabulary of subword units.
-
-Now if you have any background in Computer Science, you probably thought of information theory, Shannon and friends, the moment I started talking about compression. That's a good instinct. Deep learning, as a relatively young field, frequently leverages insights from established disciplines, a form of intellectual arbitrage you'll find everywhere.
-
-Back to information theory: we know there's a theoretical minimum number of bits to represent information losslessly, quantified by **Shannon entropy**. Lossless compression algorithms like **Huffman coding** approach this by assigning shorter codes to more frequent symbols.
-
-This directly applies to tokenization, although, in a way, inversely. While Huffman coding takes larger, meaningful symbols and breaks them down into optimal, shorter bit sequences, **subword tokenization** does the opposite. It builds up from the most granular units (characters or bytes) by merging the most frequent sequences into larger, more semantically meaningful subword tokens.
-
-To learn the subword units or merges, we need to train our $BPE$ on a large corpus of text that is representative of the text our transformer will encounter during training. This means that the merges we learn from a given corpus reflect the statistical structure of that corpus. Now since that corpus is a representative sample of the data the language model will be trained on, then BPE's merge rules become a distilled fingerprint of that distribution. This raises a subtle point: **can we infer the data composition of a model’s training data simply by analysing its tokenizer's merges ?**
-
-Let's now see how to the $BPE$ training procedure unfolds with code of a naïve implementation, in this section we will follow the algorithm step-by-step without much thought about wall-clock time
-
-Now the $BPE$ training procedure unfolds in several key stages.
-
-###### 1. **Vocabulary Initialization**
-
-The vocabulary begins with a flat base: the set of all possible byte values, typically the $256$ values from $0$ to $255$.
-
-These are the atomic units. Since nearly all modern text is encoded in UTF-8, every Unicode character can ultimately be expressed as a sequence of these bytes.
-
-This ensures total coverage, every possible input string is valid under this tokenizer. It also means that even emojis or multilingual scripts can be decomposed into legal, **if not always semantically coherent**, byte sequences.
-
-We can simply achieve this by the following code:
-
-```python
-	vocab = {i : bytes([i]) for i in range(256)}
+```Python
+vocab = {i : bytes([i]) for i in range(256)}
 ```
 
-###### 2. **Special Tokens**
+### Step 2: Special Tokens
 
-Before any merging happens, special tokens are injected into the vocabulary. These might include tokens like `<|endoftext|>`, `<PAD>`, or `<BOS>`. They are treated as indivisible atomic units and are _excluded_ from the merge process to preserve their role  as control signals in generation or evaluation
+Next, we inject special tokens like `<|endoftext|>`. These are treated as indivisible atomic units and are excluded from the merge process to preserve their role as control signals.
 
-We would simply do:
 
-```python
+```Python
 for i, token in enumerate(special_tokens):
     vocab[256 + i] = token.encode("utf-8")
 ```
 
-###### 3. **Pre-tokenization: Structuring the Input**
+### Step 3: Pre-tokenization
 
-Feeding raw text directly into the BPE algorithm creates issues. Consider the difference between `"dog"` and `"dog!"` or `"I am"` and `"I'm"`—without some initial structuring, BPE would treat these as entirely separate byte sequences, unable to connect their underlying semantics. This affects both _compression_ (we miss common patterns) and _learnability_ (we fragment meaningful concepts).
+Feeding raw text directly to the BPE algorithm is a mistake. To guide the algorithm, we first perform **pre-tokenization**, splitting the input corpus into "word-like" units using a regular expression. This ensures merges respect linguistic boundaries.
 
-To mitigate this, most modern implementations perform **pre-tokenization**, splitting the input corpus into "word-like" units before any merging begins. The GPT-2 tokenizer, for instance, uses a carefully constructed regular expression to handle English morphology, contractions, and punctuation:
+> Pre-tokenization is often ignored in discussions about BPE, but it plays a crucial role in shaping what the algorithm sees. A simple difference in the regex can lead to substantive differences in the final vocabulary.
 
-```python
-PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-```
 
-This pattern groups sequences of letters (`\p{L}`), numbers (`\p{N}`), and punctuation, ensuring that merges respect linguistic boundaries. The goal isn’t perfect linguistic segmentation, but rather to seed the BPE process with more meaningful initial units, improving its downstream merges.
+```Python
+import re
 
-> Pre-tokenization is often ignored in discussions about BPE, but it plays a crucial role in shaping what the algorithm sees, and what it learns to merge, a simple difference in the regular expression can lead to substantive differences in the final merges or vocabulary.
-
-In terms of code:
-
-```python
 def pre_tokenization(training_data, special_tokens):
-    # This is taken from github.com/openai/tiktoken/pull/234/files (GPT2)
+    # GPT-2's regex pattern for splitting text into initial chunks.
     PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{N}+| ?\p{L}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
     if not special_tokens:
         return [m.group() for m in re.finditer(PAT, training_data)]
 
+    # Split the corpus by special tokens to prevent merges across them.
     escaped_list = [re.escape(special_token) for special_token in special_tokens]
     split_PAT = r"({})".format("|".join(escaped_list))
     split_corpus = re.split(split_PAT, training_data)
 
     pretokenized_train_data = []
     for segment in split_corpus:
-        token_list = [special_token for special_token in special_tokens if special_token in segment]
-        if not segment:
-            continue
-        if len(token_list) >= 1:
+        if not segment: continue
+        # If the segment is a special token itself, add it directly.
+        if segment in special_tokens:
             pretokenized_train_data.append(segment)
         else:
+            # Otherwise, apply the main regex pattern.
             for m in re.finditer(PAT, segment):
                 pretokenized_train_data.append(m.group())
 
     return pretokenized_train_data
 ```
 
-You can notice that before pre-tokenization, we split on the special tokens, this is important so that no merging can occur across the text they delimit.
+### Step 4: Iterative Merging
 
-Notice also that we are using `re.finditer` instead of `re.findall` to avoid storing the pre-tokenized words as we construct our mapping from pre-tokens to their counts later on.
-###### 4. **Iterative Merging**
+With the pre-tokenized corpus, the core BPE process begins. We first count the occurrences of each pre-tokenized "word" and represent them as tuples of bytes.
 
-With the pre-tokenized corpus in hand, the core BPE implementation begins.
+```Python
+from collections import Counter
 
-First we need to choose a structure to keep the initial word counts. It is convenient to represent this as a `dict[tuple[bytes], int]`, e.g. `{(l,o,w): 5 ...}`, this facilitates the count of adjacent pairs and the merging process, this is way more efficient than storing everything separately and we use tuples because they are immutable.
-
-The code can look something like this:
-
-```python
 merges = []
 pretokenized_train_data = pre_tokenization(training_data, special_tokens)
-constructed_vocab = {}
-ctr = Counter(pretokenized_train_data)
+# Count initial "word" frequencies
+word_counts = Counter(pretokenized_train_data)
 
-for word, count in ctr.items():
+# Convert words to tuples of bytes and store their counts
+constructed_vocab = {}
+for word, count in word_counts.items():
     if len(word) == 1: continue
     constructed_vocab[tuple(word.encode("utf-8"))] = count
 ```
 
-And then iteratively, until the desired vocabulary size is reached, apply these steps:
+Now, we iteratively find the most frequent pair and merge it.
 
-1. **Count** the frequency of all adjacent pairs of tokens across the dataset.
-2. **Select** the pair with the highest frequency.
-3. **Merge** this pair into a new token, and add it to the vocabulary.
 
-Let's see how we might code this, starting with the outer loop:
-
-```python
-token_id = (len(vocab) + len(special_tokens)) - 1
-
+```Python
 # vocab_size is a hyperparameter.
-while token_id < vocab_size - 1:
+token_id = len(vocab) # Start ID for new merged tokens
+
+while token_id < vocab_size:
     best_pair = find_best_pair(constructed_vocab)
     merge_best_pair(constructed_vocab, best_pair, token_id)
+
+    # Bookkeeping
+    merges.append(best_pair)
+    vocab[token_id] = vocab[best_pair[0]] + vocab[best_pair[1]] # Or raw bytes
     token_id += 1
-    # Bookkeeping:
-	merges.append(best_pair)
-	vocab[token_id] = best_pair[0] + best_pair[1]
 ```
 
-All of the work happens in the two functions `find_best_pair` and `merge_best_pair`
+The heavy lifting happens in helper functions. `find_best_pair` scans all words to count all adjacent pairs.
 
-For finding the next pair to merge i.e. the one with the highest frequency, we can do the following:
-
-```python
+```Python
 def find_best_pair(constructed_vocab):
-        potential_merges_count = {}
-        for index, (word, count) in enumerate(constructed_vocab.items()):
-            for i in range(len(word) - 1):
-                key = (word[i], word[i+1])
-                potential_merges_count[key] = potential_merges_count.get(key, 0) + count
+    potential_merges_count = {}
+    for word_tuple, count in constructed_vocab.items():
+        for i in range(len(word_tuple) - 1):
+            key = (word_tuple[i], word_tuple[i+1])
+            potential_merges_count[key] = potential_merges_count.get(key, 0) + count
 
-        v = max(potential_merges_count.values())
-        keys = [k for k, val in potential_merges_count.items() if val == v]
-        new_merge = max(keys)
-        return new_merge
+    if not potential_merges_count: return None
+
+    # Tie-breaking rule: if frequencies are equal, choose the lexicographically
+    # greatest pair based on their string representation.
+    max_freq = max(potential_merges_count.values())
+    candidate_pairs = [k for k, v in potential_merges_count.items() if v == max_freq]
+    # This requires a mapping from token ID back to its string/byte representation
+    # to perform the comparison correctly.
+    best_pair = max(candidate_pairs)
+    return best_pair
 ```
 
-A subtle but important detail is how we deal with tie-breaking, it might seem as a second thought  but it does actually matter, current literature suggests taking the **lexicographically greatest** pair, The comparison is not over raw byte values but over the string representations of the merged tokens (We need to keep a dictionary of the string representations to use for tie-breaking).
+> **Gotcha:** Tie-breaking isn't just an edge case. Consistent tie-breaking (e.g., by lexicographical order of the merged token bytes) is essential for reproducing tokenizers like TikToken exactly. This subtle detail took me longer than I care to admit to get right.
 
-> This detail took me longer than I care to admit to implement correctly when I was trying to recreate $TikToken$.
+After finding the best pair, `merge_best_pair` replaces it across the entire vocabulary. This involves scanning every single word again.
 
-Now that we have our next merge, we need to apply it to all the words that contain it in our count dictionary (`constructed_vocab`).
+```Python
+# Helper to merge a pair within a single word tuple
+def merge_in_word(word_tuple, best_pair, new_token_id):
+    new_word_list = []
+    k = 0
+    while k < len(word_tuple):
+        if k < len(word_tuple) - 1 and (word_tuple[k], word_tuple[k+1]) == best_pair:
+            new_word_list.append(new_token_id)
+            k += 2
+        else:
+            new_word_list.append(word_tuple[k])
+            k += 1
+    return tuple(new_word_list)
 
-```python
-
-# This is a helper function to check if a word contains the merge
-def contains_subtuple(big, sub):
-    exists = True
-    len_big = len(big)
-    for i in range(len_big - 2 + 1):
-        if big[i:i + 2] == sub:
-              exist = True
-              break
-    return exists
-
-# This is standard, we will use it again later
-def merge(word_tuple, best_pair, token_id):
-	new_word_list = []
-	k = 0
-	while k < len(word_tuple):
-	current_bigram = (word_tuple[k], word_tuple[k + 1])
-	if k < len(word_tuple) - 1 and current_bigram == best_pair:
-		new_word_list.append(new_token_id)
-		k += 2
-	else:
-		new_word_list.append(word_tuple[k])
-		k += 1
-	return tuple(new_word_list)
-
-def merging(constructed_vocab, new_merge, token_id):
+# Main function to apply the merge across the whole vocabulary
+def merge_best_pair(constructed_vocab, best_pair, new_token_id):
     to_add = {}
     to_delete = []
-    # iterate through ALL words
-    for word in list(constructed_vocab):
-        if contains_subtuple(word, new_merge):
-			new_word_tuple = merge(word, new_merge, token_id)
-            # Bookkeeping
-            count = constructed_vocab[word]
-            to_delete.append(word)
-            to_add[new_word_tuple] = count
-    # Updates for the dictionary
-    for k in to_delete:
-        del constructed_vocab[k]
+    for word_tuple, count in constructed_vocab.items():
+        # A simple check to see if the pair exists in the word
+        if any(word_tuple[i:i+2] == best_pair for i in range(len(word_tuple) - 1)):
+            new_word_tuple = merge_in_word(word_tuple, best_pair, new_token_id)
+            to_add[new_word_tuple] = to_add.get(new_word_tuple, 0) + count
+            to_delete.append(word_tuple)
+
+    for word in to_delete:
+        del constructed_vocab[word]
     constructed_vocab.update(to_add)
 ```
 
-So to summarize:
+This naive implementation works, but it's incredibly slow. A run on a tiny 65kb text file takes ~3 seconds. To scale, we need to optimize.
 
-1. Initialize your vocabulary with all 256 possible bytes.
-2. Find the most frequent pair of adjacent tokens in your entire corpus.
-3. Merge that pair into a new token.
-4. Add the new token to your vocabulary.
-5. Repeat $N$ times, where $N$ is your desired number of merges.
+---
 
-### Profiling and Optimization:
+## Optimizing BPE:
 
-Alright ! Finally we have a working $BPE$ tokenizer, let's profile it and see.
+Profiling reveals two major bottlenecks: the repeated scanning in the **merge loop** and the single-threaded **pre-tokenization**.
 
-Profiling on a very small file (around $65kb$ of text) shows that it takes around $3s$ to run the previous implementation, this is acceptable for a naïve implementation in python, but we can do way better.
+### Bottleneck 1: Optimizing the Merge Loop
 
-Inspecting the profiling shows that there are two bottlenecks:
+In our naive approach, finding the `best_pair` and updating the corpus requires iterating over our entire word count dictionary again and again.
 
-+ `contains_subtuple`, for every merge, we iterate over all words and over all byte pairs to identify if we need a merge, this is inefficient, we need a way to keep track of what is where.
-  This also points to a problem of how we populate the `potential_merges`, for every merge, we iterates over all byte pairs to identify the most frequent pair. However, the only pair counts that change after each merge are those that overlap with the merged pair.
-+ Another bottleneck although less apparent with this small file is pre-tokenization.
+**The Fix:** Instead of re-scanning, we use smarter data structures. We'll maintain a dictionary of `potential_merges` (counts of all pairs) and another, `bigram_locations`, that maps each pair to the set of words it appears in.
 
-Fortunately, both of these bottlenecks can be overcome with some simple solutions.
+When we merge `('t', 'h')` -> `257` (let's call it `'th'`), we know the only counts that can change are those involving pairs immediately adjacent to it. For a word like `('t', 'h', 'e')`:
 
-#### Bottleneck 1:
+- The count for `('t', 'h')` decreases.
+- The count for `('h', 'e')` decreases.
+- A **new** count for `(257, 'e')` is created and increases.
 
-The first problem points towards a data structure issue, we can optimize both the merging step and updating the `potential_merges` dictionary step by simply keeping track of the different bigrams and the words they appear in.
+By only updating the stats for the words directly affected by the merge (which we can look up instantly in `bigram_locations`), we avoid redundant work.
 
-Let's create a new dictionary and initially populate it , we will call it `bigram_locations`.
+The logic becomes:
 
-```python
-# ...same as before.. (pretokenization, construct the intitial vocab and constructed_vocab)
+1. Get the list of all words affected by the `best_pair` from `bigram_locations`.
+2. For each affected word:
+    a. Decrement the counts of all pairs in the old version of the word.
+    b. Create the new version of the word by merging the pair.
+    c. Increment the counts of all pairs in the new version.
+    d. Update our main vocabulary count and bigram_locations.
 
-potential_merges = {}
+Here are the key helper functions for this efficient approach:
+
+
+```Python
+from collections import defaultdict
+
+# ... (after pre-tokenization and initial word counts) ...
+potential_merges = defaultdict(int)
 bigram_locations = defaultdict(set)
 
 for word_tuple, count in constructed_vocab.items():
@@ -293,82 +235,16 @@ for word_tuple, count in constructed_vocab.items():
         bigram = (word_tuple[i], word_tuple[i + 1])
         potential_merges[bigram] += count
         bigram_locations[bigram].add(word_tuple)
-```
 
-Now we will start the outer loop, same as before, but the merging and updating logic will be quite different.
-
-```python
-token_id = (len(vocab) + len(special_tokens)) - 1
-
-# vocab_size is a hyperparameter.
-while token_id < vocab_size - 1:
-    best_pair = get_best_pair(constructed_vocab)
-
-    merge_best_pair(constructed_vocab, best_pair, token_id)
-    token_id += 1
-    # Bookkeeping:
-	merges.append(best_pair)
-	vocab[token_id] = best_pair[0] + best_pair[1]
-```
-
-Starting with the `get_best_pair`, before we were re-constructing it with each new merge, but now, with the advanced bookkeeping logic we will implement, it will always be up-to-date and we can just simply fetch the highest frequency entry.
-
-```python
-
-def get_best_pair(potential_merges: dict, token_str: dict):
-    max_freq = max(potential_merges.values())
-    candidate_pairs = [pair for pair, freq in potential_merges.items() if freq == max_freq]
-
-    best_pair = max(
-        candidate_pairs,
-        key=lambda pair: (token_str[pair[0]], token_str[pair[1]]))
-
-    return best_pair
-```
-
-Okay, now we will move on to the more complex part.
-
-when we merge `('t', 'h')` into a new token `257` (let's call it `'th'`), what _actually_ changes?
-
-Let's consider the word `('t', 'h', 'e', 's', 'e')`.
-
-- The pair `('t', 'h')` disappears. Its count goes down.
-- The pair `('h', 'e')` disappears. Its count goes down.
-- A **new** pair `('th', 'e')` is formed. Its count goes up.
-
-The counts for `('e', 's')` and `('s', 'e')` are completely unaffected.
-
-So we can do the following, we will retrieve from the `bigram_locations` dictionary all the words that contain the new merge, since they are the only ones affected, and we will loop through them, and apply the three previously mentioned steps.
-
-```python
-words_affected = list(bigram_locations[best_pair].keys())
-
-for word_tuple in words_affected:
-
-    if word_tuple not in constructed_vocab:
-        continue
-
-    count = constructed_vocab[word_tuple]
-    # Decrement stats for all bigrams in the OLD word.
-    decrement_counts(word_tuple, potential_merges, bigram_locations, count)
-    # Merging
-    new_word_tuple = merge(word_tuple, best_pair, new_token_id)
-    # Increment stats for all bigrams in the NEW word.
-    increment_counts(new_word_tuple, potential_merges, bigram_locations, count)
-
-	# cleanup
-	constructed_vocab[new_word_tuple] = count
-    del constructed_vocab[word_tuple]
-
-# final cleanup
-del bigram_locations[best_pair]
-```
-
-Alright ! we are almost there, the `word_merge` function is same as before.
-
-We will only need to look at the decrementing/incrementing functionalities which are quite straightforward.
-
-```python
+# --- In the main loop ---
+# words_affected = list(bigram_locations[best_pair])
+# for word_tuple in words_affected:
+#   if word_tuple not in constructed_vocab: continue
+#   count = constructed_vocab[word_tuple]
+#   decrement_counts(...)
+#   new_word_tuple = merge_in_word(...)
+#   increment_counts(...)
+#   ... (bookkeeping) ...
 
 def decrement_counts(word_tuple, potential_merges, bigram_locations, count):
     for j in range(len(word_tuple) - 1):
@@ -380,8 +256,8 @@ def decrement_counts(word_tuple, potential_merges, bigram_locations, count):
             if not bigram_locations[bigram]:
                 del bigram_locations[bigram]
 
-        if potential_merges[bigram] <= 0:
-            del potential_merges[bigram]
+        if potential_merges.get(bigram, 0) <= 0:
+            potential_merges.pop(bigram, None)
 
 def increment_counts(new_word_tuple, potential_merges, bigram_locations, count):
     for j in range(len(new_word_tuple) - 1):
@@ -390,104 +266,77 @@ def increment_counts(new_word_tuple, potential_merges, bigram_locations, count):
         bigram_locations[bigram].add(new_word_tuple)
 ```
 
-The code is quite straightforward, this bookkeeping allows for faster updates and access mitigating the previous bottleneck that arised from the unnecessary looping.
+This bookkeeping is more complex, but it makes each merge step an efficient, localized update instead of a global scan.
 
-#### Bottleneck 2:
+### Bottleneck 2: Parallelizing Pre-tokenization
 
-This second bottleneck is apparent when we deal with larger files,  we can see it in the profiling of training the $BPE$ on the `22k` validation dataset of `TinyStories` for example.
+For large datasets, just reading the file and running the regex is a significant, single-threaded bottleneck.
 
-Reading the file and running our regex over it takes time but unlike the merge loop, this is an "embarrassingly parallel" task.
+**The Fix:** This task is "embarrassingly parallel." We can split our large text file into multiple chunks and process them across all available CPU cores using Python's `multiprocessing`.
 
-We can split the work across multiple CPU cores. But how do you split a massive text file? You can't just cut it at random byte offsets, you might slice a multi-byte UTF-8 character in half or split a special token like `<|endoftext|>`.
+The trick is splitting the file cleanly. We can't just cut at random byte offsets; we might slice a multi-byte character in half. A robust solution is to find "clean seams"—like a special token such as `b"<|endoftext|>"`—and split the file there.
 
-The solution is to find clean seams in the data, we can achieve this by designing a `find_chunk_boundaries` function.
+```Python
+import os
+from typing import BinaryIO
 
-```python
-def find_chunk_boundaries(
-    file: BinaryIO,
-    desired_num_chunks: int,
-    split_special_token: bytes
-) -> list[int]:
-    """
-    Chunk the file into parts that can be counted independently.    May return fewer chunks if the boundaries end up overlapping.    """    assert isinstance(split_special_token, bytes), (
-        "Must represent special token as a bytestring"
-    )
-
-    # Get total file size in bytes
+def find_chunk_boundaries(file: BinaryIO, desired_num_chunks: int, split_special_token: bytes) -> list[int]:
     file.seek(0, os.SEEK_END)
     file_size = file.tell()
     file.seek(0)
 
     chunk_size = file_size // desired_num_chunks
-
-    # Initial guesses for chunk boundary locations, uniformly spaced
-    # Chunks start on previous index, don't include last index    chunk_boundaries = [i * chunk_size for i in range(desired_num_chunks + 1)]
+    chunk_boundaries = [i * chunk_size for i in range(desired_num_chunks + 1)]
     chunk_boundaries[-1] = file_size
 
-    mini_chunk_size = 4096  # Read ahead by 4k bytes at a time
+    mini_chunk_size = 4096
 
-    for bi in range(1, len(chunk_boundaries) - 1):
-        initial_position = chunk_boundaries[bi]
-        file.seek(initial_position)  # Start at boundary guess
+    for i in range(1, len(chunk_boundaries) - 1):
+        initial_position = chunk_boundaries[i]
+        file.seek(initial_position)
         while True:
-            mini_chunk = file.read(mini_chunk_size)  # Read a mini chunk
-
-            # If EOF, this boundary should be at the end of the file            if mini_chunk == b"":
-                chunk_boundaries[bi] = file_size
+            mini_chunk = file.read(mini_chunk_size)
+            if mini_chunk == b"":
+                chunk_boundaries[i] = file_size
                 break
 
-            # Find the special token in the mini chunk
             found_at = mini_chunk.find(split_special_token)
             if found_at != -1:
-                chunk_boundaries[bi] = initial_position + found_at
+                chunk_boundaries[i] = initial_position + found_at
                 break
             initial_position += mini_chunk_size
 
-    # Make sure all boundaries are unique, but might be fewer than desired_num_chunks
-    return sorted(set(chunk_boundaries))
+    return sorted(list(set(chunk_boundaries)))
 ```
 
+With these boundaries, we can spin up a pool of processes to handle the pre-tokenization and counting in parallel.
 
-In summary:
+```Python
+import multiprocessing as mp
 
-1. It gets the total file size (`file.seek(0, os.SEEK_END)`) and calculates rough byte offsets for the number of chunks you want (e.g., one per CPU core).
-2. For each rough offset, it seeks to that position in the file.
-3. It then starts reading small "mini-chunks" (e.g., 4KB at a time) and scans for the _next_ occurrence of our `split_special_token` (e.g., `b"<|endoftext|>"`).
-4. Once found, that precise byte location becomes our clean chunk boundary.
-
-This ensures each parallel process gets a chunk of data that doesn't corrupt any tokens at its edges. Then, we can use Python's `multiprocessing` library to efficiently parallelize  the work:
-
-```python
 def process_chunk(file_path, start, end, special_tokens):
     with open(file_path, "rb") as f:
         f.seek(start)
-        text = f.read(end - start).decode("utf-8",
-                                          errors="surrogateescape")
+        text = f.read(end - start).decode("utf-8", errors="ignore")
         tokens = pre_tokenization(text, special_tokens)
         return Counter(tokens)
 
-
 word_counts = Counter()
-
 with open(file_path, 'rb') as f:
-    boundaries = find_chunk_boundaries(f,
-                                       desired_num_chunks=os.cpu_count(),
-                                       split_special_token=b"<|endoftext|>")
+    boundaries = find_chunk_boundaries(f, desired_num_chunks=os.cpu_count(), split_special_token=b"<|endoftext|>")
 
 chunks = [(file_path, start, end, special_tokens) for start, end in zip(boundaries[:-1], boundaries[1:])]
 
-with mp.Pool(processes=mp.cpu_count()) as pool:
+with mp.Pool(processes=os.cpu_count()) as pool:
     results = pool.starmap(process_chunk, chunks)
 
 for result in results:
     word_counts.update(result)
 ```
 
-Some crucial notes for engineers:
-+ we use `multiprocessing`, not `threading`, because of Python's Global Interpreter Lock (GIL). The GIL prevents multiple threads from executing Python bytecode at the same time, making `threading` useless for CPU-bound tasks. `multiprocessing` sidesteps the GIL by creating separate processes, each with its own Python interpreter and memory space.
-+ Using multiprocessing in Windows is beating a dead body, the overhead of `spawn` will bottleneck any implementation, for serious work, the training should be run on `Linux`
+> **Crucial Engineering Notes:**
+>
+> - We use `multiprocessing`, not `threading`, because of Python's Global Interpreter Lock (GIL), which prevents true parallelism for CPU-bound tasks in threads.
+> - This works best on Linux/macOS. The process creation overhead on Windows (`spawn` vs. `fork`) can make multiprocessing slower for smaller tasks.
 
-Applying these two steps on our implementation, leads to significant efficiency gains, the profiling shows that we go from `3s` in the naïve implementation to `0.3s` in this new one.
-
-> An even more efficient implementation would be to use Linked lists for keeping track of adjacencies, using linked lists in python is a bad idea, python will punish you for trying to do memory management yourself, so we might opt for a **Rust** or **C++** backend instead.
-
+With these two optimizations, our BPE trainer goes from **3 seconds to 0.3 seconds** on the same 65kb file, a $10\times$ speedup that scales to massive datasets.
