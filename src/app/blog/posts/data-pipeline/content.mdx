@@ -9,7 +9,7 @@ Looking into the raw data, it was mostly incoherent gibberish.
  So I thought it could be useful to document the process of bridging the gap between this incoherent mesh and data I can train on. However, instead of just enumerating filtering steps, I want to dig a bit deeper and share the _process_ I followed for developing a data pipeline.
  I share all the code I have written for this project here [github repo](https://github.com/fadibenz/common-crawl-filtering).
 
-I trained a GPT-2 small model on the data I curated for 200k step, and it achieved a validation score of "" on C4 100 domains subset, this is a descent score and shows that following some simple steps and heuristics can lead to curating high quality data, although the engineering part was non-trivial.
+I trained a GPT-2 small model on the data I curated for 200k step, and it achieved a validation score of "3.3" on C4 100 domains subset, this is a descent score and shows that following some simple steps and heuristics can lead to curating high quality data, although the engineering part was non-trivial.
 
 The trick is to follow a certain methodology, one that, as far as I can tell, is not often documented. Let's start with two important observations that motivate it.
 
@@ -254,10 +254,11 @@ Finally, to validate the quality of the curated data, I used it to train a GPT-2
 
 The training setup is conventional: DDP, AdamW and Cosine Annealing schedule.
 
-The full training run took approximately **[XX hours]** on two T4 GPUs on Kaggle
+The final evaluation perplexity on a 20k sample subset of the C4 validation set was **3.3**.
 
-The final evaluation perplexity on a 20k sample subset of the C4 validation set was **3.2**. **For context, models of similar size trained on unfiltered or lightly-filtered web data typically plateau at a perplexity well above 10, demonstrating the significant impact of the curation pipeline.**
+**For context, models of similar size trained on unfiltered or lightly-filtered web data typically plateau at a perplexity well above 10, demonstrating the significant impact of the curation pipeline.**
 
+![](/images/Blog/CC/eval_loss_GPT2.png)
 **Figure 2:** _GPT-2 Small (124M) training and evaluation loss curves._
 
 ### **Conclusion**
