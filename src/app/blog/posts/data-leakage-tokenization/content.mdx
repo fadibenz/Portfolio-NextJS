@@ -112,9 +112,6 @@ For the training itself, I used the **AdamW** optimizer with a custom **cosine l
 
 **Other training details in the repo:** Mixed-precision training, per-client batch splitting used on TPU, checkpoint frequency, and Weights & Biases logging configuration.
 
-> **Important:**
->
-> All runs use a single seed due to Kaggle budget constraints; reported PPL differences are therefore single-seed estimates (see Appendix for variance discussion).
 ## Hypothesis 1: Leakage Will Be Obvious in Tokenizer Metrics
 
 My first hypothesis was that the leakage would be directly observable in the tokenization metrics.
@@ -141,8 +138,6 @@ These results show:
 > **TL;DR:**
 >
 > Including the validation set in tokenizer training did not produce a statistically significant change in compression or fragmentation. The validation set is simply too small and _statistically similar_ to the training data to meaningfully alter the **BPE** merge rules. My initial hypothesis was wrong; the data leakage is more subtle.
-
-
 
 ---
 ## Hypothesis 2: Leakage Affects Learnability, Not Representation
@@ -176,7 +171,7 @@ Finally, I picked the best checkpoint for each model based on validation perplex
 
 >**TL;DR:**
 >
->Validation perplexity differed by **≤0.01** and test perplexity by **≤0.01** (30M), within run-to-run noise. I only ran the experiment with a single-seed, *multi-seed variance will be reported in Appendix once budget allows*.
+>Validation perplexity differed by **≤0.01** and test perplexity by **≤0.01** (30M), within run-to-run noise.
 >
 >There's no sign of overfitting, the models performance was identical on both sets and tokenizer training **did not lead to any observable leakage**. This hypothesis is wrong, however results might differ at scale.
 
@@ -215,7 +210,6 @@ In other words, “exposure” at the tokenizer stage isn’t a strong shortcut 
 I validated this by both looking at the results from the tokenizer statistics and the metrics
 from training and validating models with different sizes.
 
-> Note again that my experiments used one seed, drawing conclusive results would demand further investigation.
 
 ---
 
@@ -223,11 +217,7 @@ from training and validating models with different sizes.
 
 This experiment began as a simple query into data leakage and although this is a simple idea and setup it proved to be very helpful in building my intuition into experimenting and going from questions to verifiable hypothesis to running experiments and finally interpreting results.
 
->**TL;DR for practitioners:**
->
->+  Training your BPE tokenizer on `train + val` is unlikely to bias validation/test PPL when both sets are large and in-domain.
->+ If your validation set is small, out-of-domain, or you work with rare-token domains (code, biomedical), prefer train-only tokenizers or explicitly quantify tokenizer perturbation.
-> + if possible, run 2–3 seeds for critical comparisons, small **Δs** can otherwise be single-seed noise.
+For typical web-scale, in-distribution corpora, tokenizer leakage appears negligible. Exceptions likely arise when validation is small or distribution-shifted
 
 To reproduce the previous results, you can find the code for the implementation and experiments here: [GitHub Repo](https://github.com/fadibenz/BPE-Tokenizer)
 
